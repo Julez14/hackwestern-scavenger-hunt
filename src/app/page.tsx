@@ -2,10 +2,12 @@
 
 import create from "./axiosInstance";
 import { useEffect, useState } from "react";
+import AdminDashboard from "./adminDashboard";
 import Items from "./items";
 import Team, { getTeams, team } from "./team";
 
 const axiosUpdateName = create("update-name-by-pk");
+const ADMIN_TEAM_ID = "6145";
 
 export default function Home() {
   const validTeamIds = [7687, 6215, 9277, 1023, 4136];
@@ -81,7 +83,9 @@ export default function Home() {
         }
       </div>
       {
-        validTeamIds.includes(parseInt(teamId)) ?
+        teamId === ADMIN_TEAM_ID ?
+        <AdminDashboard adminId={ADMIN_TEAM_ID} />
+        : validTeamIds.includes(parseInt(teamId)) ?
         <div>
           <div>
             {teams.length > 0 ?
@@ -121,7 +125,7 @@ export default function Home() {
           <br/>
           Items:
           <Items teamId={teamId} />
-        </div> : <div>Invalid Team ID</div>
+        </div> : teamId ? <div>Invalid Team ID</div> : null
       }
       {isUpdatingTeamName &&
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-white text-2xl backdrop-blur-md">

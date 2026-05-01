@@ -4,7 +4,7 @@ const nextConfig = {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'magenta-peaceful-sole-762.mypinata.cloud',
+                hostname: '**.mypinata.cloud',
                 port: '',
             }
         ],

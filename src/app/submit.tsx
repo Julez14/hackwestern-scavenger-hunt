@@ -1,20 +1,16 @@
 import axios, { type AxiosResponse } from "axios";
 import { useEffect, useState } from "react";
-import FormData from "form-data";
 import Image from "next/image";
 import create from "./axiosInstance";
 
 const axiosSubmit = create("insert-submission");
-const axiosUpdateScore = create("update-score");
-const axiosFetchScore = create("teams");
 
 const Submit = (props: {
     itemId: number,
     teamId: number | string,
     setRefetchSubmissions: (value: boolean) => void,
-    itemScore: number
 }) => {
-    const { itemId, teamId, setRefetchSubmissions, itemScore } = props;
+    const { itemId, teamId, setRefetchSubmissions } = props;
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [ipfsHash, setIpfsHash] = useState("");
     const [isUploading, setIsUploading] = useState(false);
@@ -81,9 +77,8 @@ const Submit = (props: {
             });
         } catch (error) {
             console.log(error);
+            setIsUploading(false);
         }
-
-        setRefetchSubmissions(true);
     }
 
     useEffect(() => {
@@ -97,28 +92,19 @@ const Submit = (props: {
                     image_url: url,
                     item_id: itemId,
                     team_id: teamId,
+                    status: "pending",
                     time_submitted: new Date().toISOString()
                 }
             }).then((res) => {
                 console.log("insert into db: ", res);
+                setRefetchSubmissions(true);
+                setSelectedImage(null);
+                setIpfsHash("");
             }).catch((error) => {
                 console.error(error);
             });
-
-            // Update team score
-            axiosFetchScore.get(`/${teamId}`).then((teamRes) => {
-                console.log('team res: ', teamRes.data.teams_by_pk);
-                const currScore = teamRes.data.teams_by_pk.score;
-                console.log('curr score: ', currScore);
-                console.log('item score: ', itemScore);
-                axiosUpdateScore.post(`/${teamId}`, {
-                    object: {
-                        score: currScore + itemScore
-                    }
-                });
-            });
         }
-    }, [ipfsHash]);
+    }, [ipfsHash, itemId, setRefetchSubmissions, teamId]);
 
     return (
         <div>
