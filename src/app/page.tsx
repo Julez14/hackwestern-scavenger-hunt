@@ -31,7 +31,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setTeamName(teams.filter((team) => team.id == teamId).map((team) => team.name)[0] || "");
+    setTeamName(
+      teams.filter((team) => team.id == teamId).map((team) => team.name)[0] ||
+        "",
+    );
     setIsUpdatingTeamName(false);
 
     const intervalId = setInterval(() => {
@@ -51,87 +54,140 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center px-3 pb-5 gap-3">
       <div className="relative flex place-items-center bg-goose-spin bg-repeat bg-contain z-[-1] min-h-20 text-purple-700 font-black py-10 px-5 text-xl">
-        Welcome to the Hack Western 12 Kickoff Scavenger Hunt! 🎉
+        Welcome to the Hack Western 13 Organizer Scavenger Hunt! 🎉
       </div>
       <ul className="list-disc mx-3">
         Rules:
-        <li>Find items on the list, take and upload a picture to get points for it, each item is worth a certain number of points</li>
+        <li>
+          Find items on the list, take and upload a picture to get points for
+          it, each item is worth a certain number of points
+        </li>
         <li>Pictures should have at least one of your teammates in it!</li>
-        <li>Only 1 image can be submitted per item, and once an image is submitted, it cannot be deleted. &#40;but if you must, message me on Discord&#41;</li>
+        <li>
+          Only 1 image can be submitted per item, and once an image is
+          submitted, it cannot be deleted. &#40;but if you must, message me on
+          Discord&#41;
+        </li>
       </ul>
       <Team />
       <div>
-        {teamId ?
+        {teamId ? (
           <div>
             Team ID: {teamId}
-            <button className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5" onClick={() => {
-              setTeamId("");
-              localStorage.removeItem("teamId");
-            }}>Change Team</button>
+            <button
+              className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+              onClick={() => {
+                setTeamId("");
+                localStorage.removeItem("teamId");
+              }}
+            >
+              Change Team
+            </button>
           </div>
-          :
-          <div>Enter your team ID:
-            <input onChange={handleInputChange} className="text-black ml-2 max-w-[25%]">
-            </input>
-            <button className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5" onClick={() =>
-                {
-                  setTeamId(inputValue);
-                  localStorage.setItem("teamId", inputValue);
-                }
-              }>Submit</button>
+        ) : (
+          <div>
+            Enter your team ID:
+            <input
+              onChange={handleInputChange}
+              className="text-black ml-2 max-w-[25%]"
+            ></input>
+            <button
+              className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+              onClick={() => {
+                setTeamId(inputValue);
+                localStorage.setItem("teamId", inputValue);
+              }}
+            >
+              Submit
+            </button>
           </div>
-        }
+        )}
       </div>
-      {
-        teamId === ADMIN_TEAM_ID ?
+      {teamId === ADMIN_TEAM_ID ? (
         <AdminDashboard adminId={ADMIN_TEAM_ID} />
-        : validTeamIds.includes(parseInt(teamId)) ?
+      ) : validTeamIds.includes(parseInt(teamId)) ? (
         <div>
           <div>
-            {teams.length > 0 ?
-                teams.filter((team) => team.id == teamId).map((team) => (
-                  !updatingTeamName ?
+            {teams.length > 0 ? (
+              teams
+                .filter((team) => team.id == teamId)
+                .map((team) =>
+                  !updatingTeamName ? (
                     <div key={team.id} className="text-center space-y-2">
-                      <div>Team {team.name} | {team.score} points</div>
-                      <div>Members: {team.members.map((member: string) => member).join(", ")}</div>
+                      <div>
+                        Team {team.name} | {team.score} points
+                      </div>
+                      <div>
+                        Members:{" "}
+                        {team.members
+                          .map((member: string) => member)
+                          .join(", ")}
+                      </div>
                       <button
                         className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
                         onClick={() => setUpdatingTeamName(true)}
-                      >Edit Team Name</button>
+                      >
+                        Edit Team Name
+                      </button>
                     </div>
-                    :
+                  ) : (
                     <div key={team.id} className="text-center">
-                      <input className="text-black pl-1" onChange={(e) => setTeamName(e.target.value)} placeholder="new team name" />
-                      <button className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5" onClick={() => {
-                        setUpdatingTeamName(false);
-                      }}>Cancel</button>
-                      <button className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5" onClick={() => {
-                        setIsUpdatingTeamName(true);
-                        setUpdatingTeamName(false);
-                        axiosUpdateName.post(`/${teamId}`, {object: {
-                          name: teamName
-                        }}).then(() => {
-                          getTeams().then((data) => {
-                            console.log("teams after updating name: ", data);
-                            setTeams(data.teams);
-                          });
-                        });
-                      }}>Save</button>
+                      <input
+                        className="text-black pl-1"
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="new team name"
+                      />
+                      <button
+                        className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+                        onClick={() => {
+                          setUpdatingTeamName(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+                        onClick={() => {
+                          setIsUpdatingTeamName(true);
+                          setUpdatingTeamName(false);
+                          axiosUpdateName
+                            .post(`/${teamId}`, {
+                              object: {
+                                name: teamName,
+                              },
+                            })
+                            .then(() => {
+                              getTeams().then((data) => {
+                                console.log(
+                                  "teams after updating name: ",
+                                  data,
+                                );
+                                setTeams(data.teams);
+                              });
+                            });
+                        }}
+                      >
+                        Save
+                      </button>
                     </div>
-
-                )) : <div>Loading...</div>
-            }
+                  ),
+                )
+            ) : (
+              <div>Loading...</div>
+            )}
           </div>
-          <br/>
+          <br />
           Items:
           <Items teamId={teamId} />
-        </div> : teamId ? <div>Invalid Team ID</div> : null
-      }
-      {isUpdatingTeamName &&
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-white text-2xl backdrop-blur-md">
-              Updating... Please wait...
-          </div>
-      }
+        </div>
+      ) : teamId ? (
+        <div>Invalid Team ID</div>
+      ) : null}
+      {isUpdatingTeamName && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-white text-2xl backdrop-blur-md">
+          Updating... Please wait...
+        </div>
+      )}
     </main>
   );
 }
