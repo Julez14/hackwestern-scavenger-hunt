@@ -1,0 +1,3 @@
+function:
+  name: deny_submission
+  schema: public

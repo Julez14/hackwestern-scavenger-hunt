@@ -1,0 +1,3 @@
+function:
+  name: approve_submission
+  schema: public

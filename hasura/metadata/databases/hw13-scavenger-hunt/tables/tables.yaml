@@ -1,0 +1,3 @@
+- "!include public_items.yaml"
+- "!include public_submissions.yaml"
+- "!include public_teams.yaml"

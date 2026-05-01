@@ -1,0 +1,81 @@
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: approve_submission
+  methods:
+    - POST
+  name: approve_submission
+  url: approve-submission/:submissionId
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: deny_submission
+  methods:
+    - POST
+  name: deny_submission
+  url: deny-submission/:submissionId
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: insert_submission
+  methods:
+    - POST
+  name: insert_submission
+  url: insert-submission
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: items
+  methods:
+    - GET
+  name: items
+  url: items
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: submissions
+  methods:
+    - GET
+  name: submissions
+  url: submissions
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: teams
+  methods:
+    - GET
+  name: teams
+  url: teams
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: team_by_pk
+  methods:
+    - GET
+  name: team_by_pk
+  url: teams/:teamId
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: update_name_by_pk
+  methods:
+    - POST
+  name: update_name_by_pk
+  url: update-name-by-pk/:teamId
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: update_score
+  methods:
+    - POST
+  name: update_score
+  url: update-score/:teamId

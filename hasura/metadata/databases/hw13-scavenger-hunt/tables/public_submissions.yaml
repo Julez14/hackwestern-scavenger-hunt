@@ -1,0 +1,10 @@
+table:
+  name: submissions
+  schema: public
+object_relationships:
+  - name: item
+    using:
+      foreign_key_constraint_on: item_id
+  - name: team
+    using:
+      foreign_key_constraint_on: team_id

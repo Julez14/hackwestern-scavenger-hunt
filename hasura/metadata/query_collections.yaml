@@ -1,0 +1,100 @@
+- name: scavenger_hunt
+  definition:
+    queries:
+      - name: teams
+        query: |
+          query teams {
+            teams(order_by: {score:desc}) {
+              id
+              name
+              members
+              score
+            }
+          }
+      - name: team_by_pk
+        query: |
+          query team_by_pk ($teamId: Int!) {
+            teams_by_pk(id: $teamId) {
+              id
+              name
+              members
+              score
+            }
+          }
+      - name: items
+        query: |
+          query items {
+            items(order_by: {id:asc}) {
+              id
+              item
+              points
+            }
+          }
+      - name: submissions
+        query: |
+          query submissions {
+            submissions(order_by: {time_submitted:desc}) {
+              id
+              team_id
+              item_id
+              image_url
+              time_submitted
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
+      - name: insert_submission
+        query: |
+          mutation insert_submission ($object: submissions_insert_input!) {
+            insert_submissions_one(object: $object) {
+              id
+              team_id
+              item_id
+              image_url
+              time_submitted
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
+      - name: update_score
+        query: |
+          mutation update_score ($teamId: Int!, $object: teams_set_input!) {
+            update_teams_by_pk(pk_columns: {id:$teamId}, _set: $object) {
+              id
+              score
+            }
+          }
+      - name: update_name_by_pk
+        query: |
+          mutation update_name_by_pk ($teamId: Int!, $object: teams_set_input!) {
+            update_teams_by_pk(pk_columns: {id:$teamId}, _set: $object) {
+              id
+              name
+            }
+          }
+      - name: approve_submission
+        query: |
+          mutation approve_submission ($submissionId: Int!, $adminId: Int!) {
+            approve_submission(args: {p_submission_id:$submissionId,p_reviewed_by:$adminId}) {
+              id
+              team_id
+              item_id
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
+      - name: deny_submission
+        query: |
+          mutation deny_submission ($submissionId: Int!, $adminId: Int!) {
+            deny_submission(args: {p_submission_id:$submissionId,p_reviewed_by:$adminId}) {
+              id
+              team_id
+              item_id
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
