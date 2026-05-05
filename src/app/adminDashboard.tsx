@@ -243,6 +243,17 @@ const AdminDashboard = (props: { adminId: string }) => {
                 </div>
             </div>
 
+            <div className="rounded bg-purple-800 p-4">
+                <h3 className="mb-2 text-lg font-bold text-purple-100">Active Team IDs</h3>
+                <div className="flex flex-wrap gap-2">
+                    {teams.map((team) => (
+                        <span key={team.id} className="rounded bg-purple-950 px-2 py-1 text-sm font-medium text-white">
+                            {team.id}: {team.name}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
             {uploadNotifications.length > 0 && (
                 <div className="sticky top-2 z-30 space-y-2 rounded bg-white p-3 text-purple-950 shadow-lg">
                     <div className="font-bold">New uploads</div>
