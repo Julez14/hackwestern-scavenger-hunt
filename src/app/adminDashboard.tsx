@@ -10,10 +10,14 @@ const axiosItems = create("items");
 const axiosSubmissions = create("submissions");
 const axiosApproveSubmission = create("approve-submission");
 const axiosDenySubmission = create("deny-submission");
+const axiosUndoApproval = create("undo-approval");
 const axiosResetGame = create("reset-game");
+const axiosGameSettings = create("game-settings");
+const axiosSetAutoApproval = create("set-auto-approval");
 
 const getItems = async () => getResponse(axiosItems);
 const getSubmissions = async () => getResponse(axiosSubmissions);
+const getGameSettings = async () => getResponse(axiosGameSettings);
 
 type Item = {
     id: number;
@@ -53,6 +57,8 @@ const AdminDashboard = (props: { adminId: string }) => {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);
     const [reviewingId, setReviewingId] = useState<number | null>(null);
+    const [autoApprovalEnabled, setAutoApprovalEnabled] = useState(false);
+    const [updatingAutoApproval, setUpdatingAutoApproval] = useState(false);
     const [resettingGame, setResettingGame] = useState(false);
     const [uploadNotifications, setUploadNotifications] = useState<UploadNotification[]>([]);
     const seenPendingSubmissionIds = useRef<Set<number>>(new Set());
@@ -80,15 +86,17 @@ const AdminDashboard = (props: { adminId: string }) => {
     }, [items]);
 
     const loadDashboardData = useCallback(async (notifyNewUploads: boolean) => {
-        const [itemsData, submissionsData, teamsData] = await Promise.all([
+        const [itemsData, submissionsData, teamsData, settingsData] = await Promise.all([
             getItems(),
             getSubmissions(),
             getTeams(),
+            getGameSettings(),
         ]);
 
         const nextItems = itemsData?.items || [];
         const nextSubmissions = submissionsData?.submissions || [];
         const nextTeams = teamsData?.teams || [];
+        const nextSettings = settingsData?.game_settings_by_pk;
         const pendingSubmissions = nextSubmissions.filter((submission: Submission) => submission.status === "pending");
 
         if (notifyNewUploads && initialized.current) {
@@ -111,6 +119,7 @@ const AdminDashboard = (props: { adminId: string }) => {
         setItems(nextItems);
         setSubmissions(nextSubmissions);
         setTeams(nextTeams);
+        setAutoApprovalEnabled(Boolean(nextSettings?.auto_approval_enabled));
         setLoading(false);
     }, []);
 
@@ -147,6 +156,34 @@ const AdminDashboard = (props: { adminId: string }) => {
         }
     };
 
+    const undoApproval = async (submission: Submission) => {
+        setReviewingId(submission.id);
+
+        try {
+            await axiosUndoApproval.post(`/${submission.id}`, {
+                adminId: parseInt(adminId),
+            });
+            await loadDashboardData(false);
+        } finally {
+            setReviewingId(null);
+        }
+    };
+
+    const updateAutoApproval = async (enabled: boolean) => {
+        setUpdatingAutoApproval(true);
+
+        try {
+            const response = await axiosSetAutoApproval.post("/", {
+                adminId: parseInt(adminId),
+                enabled,
+            });
+            const updatedSetting = response.data?.set_auto_approval?.[0];
+            setAutoApprovalEnabled(Boolean(updatedSetting?.auto_approval_enabled));
+        } finally {
+            setUpdatingAutoApproval(false);
+        }
+    };
+
     const resetGame = async () => {
         const shouldReset = window.confirm("Reset the game? This deletes all submissions and sets every team score to 0.");
 
@@ -180,18 +217,30 @@ const AdminDashboard = (props: { adminId: string }) => {
 
     return (
         <section className="w-full max-w-6xl space-y-4">
-            <div className="flex flex-col gap-3 rounded bg-purple-950 p-4 text-white shadow sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded bg-purple-950 p-4 text-white shadow lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 className="text-2xl font-black">Admin Dashboard</h2>
                     <p className="text-sm text-purple-100">Review uploaded photos. Scores are awarded only when a pending submission is approved.</p>
                 </div>
-                <button
-                    className="rounded bg-red-200 px-4 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
-                    disabled={resettingGame}
-                    onClick={resetGame}
-                >
-                    {resettingGame ? "Resetting..." : "Reset game"}
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label className="flex items-center justify-between gap-3 rounded bg-purple-800 px-4 py-2 font-bold text-white">
+                        <span>Auto-approve</span>
+                        <input
+                            type="checkbox"
+                            className="h-5 w-5 accent-green-300"
+                            checked={autoApprovalEnabled}
+                            disabled={updatingAutoApproval}
+                            onChange={(event) => updateAutoApproval(event.target.checked)}
+                        />
+                    </label>
+                    <button
+                        className="rounded bg-red-200 px-4 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
+                        disabled={resettingGame}
+                        onClick={resetGame}
+                    >
+                        {resettingGame ? "Resetting..." : "Reset game"}
+                    </button>
+                </div>
             </div>
 
             {uploadNotifications.length > 0 && (
@@ -273,6 +322,19 @@ const AdminDashboard = (props: { adminId: string }) => {
                                                                             onClick={() => reviewSubmission(submission, "deny")}
                                                                         >
                                                                             Deny
+                                                                        </button>
+                                                                    </div>
+                                                                ) : submission.status === "approved" ? (
+                                                                    <div className="space-y-2">
+                                                                        <div className="rounded bg-purple-800 px-3 py-2 text-sm capitalize">
+                                                                            Approved {submission.reviewed_at ? `at ${new Date(submission.reviewed_at).toLocaleString()}` : ""}
+                                                                        </div>
+                                                                        <button
+                                                                            className="w-full rounded bg-yellow-200 px-3 py-2 font-bold text-yellow-950 hover:bg-yellow-300 disabled:opacity-60"
+                                                                            disabled={isReviewing}
+                                                                            onClick={() => undoApproval(submission)}
+                                                                        >
+                                                                            Undo approval
                                                                         </button>
                                                                     </div>
                                                                 ) : (

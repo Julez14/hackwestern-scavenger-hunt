@@ -1,0 +1,8 @@
+table:
+  name: game_settings
+  schema: public
+select_permissions:
+  - role: public
+    permission:
+      columns: "*"
+      filter: {}

@@ -20,6 +20,15 @@
   definition:
     query:
       collection_name: scavenger_hunt
+      query_name: game_settings
+  methods:
+    - GET
+  name: game_settings
+  url: game-settings
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
       query_name: insert_submission
   methods:
     - POST
@@ -34,6 +43,24 @@
     - POST
   name: reset_game
   url: reset-game
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: set_auto_approval
+  methods:
+    - POST
+  name: set_auto_approval
+  url: set-auto-approval
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: undo_approval
+  methods:
+    - POST
+  name: undo_approval
+  url: undo-approval/:submissionId
 - comment: null
   definition:
     query:

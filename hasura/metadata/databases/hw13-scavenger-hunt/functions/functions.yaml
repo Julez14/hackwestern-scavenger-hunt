@@ -1,3 +1,5 @@
 - "!include public_approve_submission.yaml"
 - "!include public_deny_submission.yaml"
 - "!include public_reset_game.yaml"
+- "!include public_set_auto_approval.yaml"
+- "!include public_undo_approval.yaml"

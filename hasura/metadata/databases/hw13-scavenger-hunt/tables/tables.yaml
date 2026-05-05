@@ -1,3 +1,4 @@
+- "!include public_game_settings.yaml"
 - "!include public_items.yaml"
 - "!include public_submissions.yaml"
 - "!include public_teams.yaml"

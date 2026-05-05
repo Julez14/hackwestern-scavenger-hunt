@@ -46,6 +46,16 @@
               reviewed_by
             }
           }
+      - name: game_settings
+        query: |
+          query game_settings {
+            game_settings_by_pk(id: 1) {
+              id
+              auto_approval_enabled
+              updated_at
+              updated_by
+            }
+          }
       - name: insert_submission
         query: |
           mutation insert_submission ($object: submissions_insert_input!) {
@@ -88,6 +98,18 @@
               reviewed_by
             }
           }
+      - name: undo_approval
+        query: |
+          mutation undo_approval ($submissionId: Int!, $adminId: Int!) {
+            undo_approval(args: {p_submission_id:$submissionId,p_reviewed_by:$adminId}) {
+              id
+              team_id
+              item_id
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
       - name: deny_submission
         query: |
           mutation deny_submission ($submissionId: Int!, $adminId: Int!) {
@@ -108,5 +130,15 @@
               name
               members
               score
+            }
+          }
+      - name: set_auto_approval
+        query: |
+          mutation set_auto_approval ($adminId: Int!, $enabled: Boolean!) {
+            set_auto_approval(args: {p_admin_id:$adminId,p_enabled:$enabled}) {
+              id
+              auto_approval_enabled
+              updated_at
+              updated_by
             }
           }
