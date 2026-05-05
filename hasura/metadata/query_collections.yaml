@@ -24,10 +24,12 @@
       - name: items
         query: |
           query items {
-            items(order_by: {id:asc}) {
+            items(order_by: {display_order:asc}) {
               id
               item
               points
+              category
+              display_order
             }
           }
       - name: submissions

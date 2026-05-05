@@ -18,6 +18,8 @@ type Item = {
     id: number;
     item: string;
     points: number;
+    category: string;
+    display_order: number;
 };
 
 type Submission = {
@@ -60,7 +62,20 @@ const AdminDashboard = (props: { adminId: string }) => {
         return teamMap;
     }, [teams]);
 
-    const minItemId = items.length > 0 ? Math.min(...items.map((item) => item.id)) : 0;
+    const minItemId = items.length > 0 ? Math.min(...items.map((item) => item.display_order)) : 0;
+
+    const groupedItems = useMemo(() => {
+        const groups: Record<string, Item[]> = {};
+        items.forEach((item) => {
+            const cat = item.category || "Uncategorized";
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(item);
+        });
+        Object.keys(groups).forEach((cat) => {
+            groups[cat].sort((a, b) => a.display_order - b.display_order);
+        });
+        return groups;
+    }, [items]);
 
     const loadDashboardData = useCallback(async (notifyNewUploads: boolean) => {
         const [itemsData, submissionsData, teamsData] = await Promise.all([
@@ -163,79 +178,87 @@ const AdminDashboard = (props: { adminId: string }) => {
             )}
 
             {loading ? <div>Loading admin dashboard...</div> : (
-                <div className="space-y-5">
+                <div className="space-y-8">
                     {items.length === 0 && <div className="rounded bg-purple-900 p-4">No prompts have been added yet.</div>}
-                    {[...items].sort((a, b) => a.id - b.id).map((item) => {
-                        const itemSubmissions = getItemSubmissions(item.id);
+                    {Object.keys(groupedItems).map((category) => (
+                        <section key={category}>
+                            <h2 className="mb-4 text-3xl font-bold text-purple-200">{category}</h2>
+                            <div className="space-y-5">
+                                {groupedItems[category].map((item) => {
+                                    const itemSubmissions = getItemSubmissions(item.id);
+                                    const itemNumber = item.display_order - minItemId + 1;
 
-                        return (
-                            <section id={`prompt-${item.id}`} key={item.id} className="scroll-mt-6 rounded bg-purple-900 p-4">
-                                <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                                    <h3 className="text-xl font-bold">{item.id - minItemId + 1}. {item.item}</h3>
-                                    <div className="rounded bg-purple-700 px-3 py-1 text-sm font-semibold">{item.points} point{item.points === 1 ? "" : "s"}</div>
-                                </div>
+                                    return (
+                                        <section id={`prompt-${item.id}`} key={item.id} className="scroll-mt-6 rounded bg-purple-900 p-4">
+                                            <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                                                <h3 className="text-xl font-bold">{itemNumber}. {item.item}</h3>
+                                                <div className="rounded bg-purple-700 px-3 py-1 text-sm font-semibold">{item.points} point{item.points === 1 ? "" : "s"}</div>
+                                            </div>
 
-                                {itemSubmissions.length === 0 ? (
-                                    <div className="rounded border border-dashed border-purple-400 p-4 text-purple-100">No submissions yet.</div>
-                                ) : (
-                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                        {itemSubmissions.map((submission) => {
-                                            const submittingTeam = teamsById.get(String(submission.team_id));
-                                            const isReviewing = reviewingId === submission.id;
+                                            {itemSubmissions.length === 0 ? (
+                                                <div className="rounded border border-dashed border-purple-400 p-4 text-purple-100">No submissions yet.</div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                                    {itemSubmissions.map((submission) => {
+                                                        const submittingTeam = teamsById.get(String(submission.team_id));
+                                                        const isReviewing = reviewingId === submission.id;
 
-                                            return (
-                                                <article key={submission.id} className="space-y-2 rounded bg-purple-950 p-3">
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div>
-                                                            <div className="font-bold">Team {submittingTeam?.name || submission.team_id}</div>
-                                                            <div className="text-xs text-purple-200">{new Date(submission.time_submitted).toLocaleString()}</div>
-                                                        </div>
-                                                        <span className={`rounded px-2 py-1 text-xs font-bold capitalize ${statusStyles[submission.status]}`}>
-                                                            {submission.status}
-                                                        </span>
-                                                    </div>
+                                                        return (
+                                                            <article key={submission.id} className="space-y-2 rounded bg-purple-950 p-3">
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div>
+                                                                        <div className="font-bold">Team {submittingTeam?.name || submission.team_id}</div>
+                                                                        <div className="text-xs text-purple-200">{new Date(submission.time_submitted).toLocaleString()}</div>
+                                                                    </div>
+                                                                    <span className={`rounded px-2 py-1 text-xs font-bold capitalize ${statusStyles[submission.status]}`}>
+                                                                        {submission.status}
+                                                                    </span>
+                                                                </div>
 
-                                                    <Image
-                                                        src={submission.image_url}
-                                                        alt={`Team ${submittingTeam?.name || submission.team_id} submission`}
-                                                        placeholder="blur"
-                                                        blurDataURL={blurData}
-                                                        width={600}
-                                                        height={600}
-                                                        sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                                                        className="h-auto w-full rounded"
-                                                    />
+                                                                <Image
+                                                                    src={submission.image_url}
+                                                                    alt={`Team ${submittingTeam?.name || submission.team_id} submission`}
+                                                                    placeholder="blur"
+                                                                    blurDataURL={blurData}
+                                                                    width={600}
+                                                                    height={600}
+                                                                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+                                                                    className="h-auto w-full rounded"
+                                                                />
 
-                                                    {submission.status === "pending" ? (
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <button
-                                                                className="rounded bg-green-200 px-3 py-2 font-bold text-green-950 hover:bg-green-300 disabled:opacity-60"
-                                                                disabled={isReviewing}
-                                                                onClick={() => reviewSubmission(submission, "approve")}
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                className="rounded bg-red-200 px-3 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
-                                                                disabled={isReviewing}
-                                                                onClick={() => reviewSubmission(submission, "deny")}
-                                                            >
-                                                                Deny
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="rounded bg-purple-800 px-3 py-2 text-sm capitalize">
-                                                            {submission.status} {submission.reviewed_at ? `at ${new Date(submission.reviewed_at).toLocaleString()}` : ""}
-                                                        </div>
-                                                    )}
-                                                </article>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </section>
-                        );
-                    })}
+                                                                {submission.status === "pending" ? (
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <button
+                                                                            className="rounded bg-green-200 px-3 py-2 font-bold text-green-950 hover:bg-green-300 disabled:opacity-60"
+                                                                            disabled={isReviewing}
+                                                                            onClick={() => reviewSubmission(submission, "approve")}
+                                                                        >
+                                                                            Approve
+                                                                        </button>
+                                                                        <button
+                                                                            className="rounded bg-red-200 px-3 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
+                                                                            disabled={isReviewing}
+                                                                            onClick={() => reviewSubmission(submission, "deny")}
+                                                                        >
+                                                                            Deny
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="rounded bg-purple-800 px-3 py-2 text-sm capitalize">
+                                                                        {submission.status} {submission.reviewed_at ? `at ${new Date(submission.reviewed_at).toLocaleString()}` : ""}
+                                                                    </div>
+                                                                )}
+                                                            </article>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </section>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    ))}
                 </div>
             )}
         </section>

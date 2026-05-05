@@ -14,6 +14,8 @@ type item = {
     id: number;
     item: string;
     points: number;
+    category: string;
+    display_order: number;
 }
 
 type submission = {
@@ -44,7 +46,20 @@ const Items = (props: { teamId: number | string }) => {
     const reviewStatusRef = useRef<Map<number, submission["status"]>>(new Map());
     const reviewNotificationsInitialized = useRef(false);
 
-    const minItemId = items.length > 0 ? Math.min(...items.map((item) => item.id)) : 0;
+    const minItemId = items.length > 0 ? Math.min(...items.map((item) => item.display_order)) : 0;
+
+    const groupedItems = React.useMemo(() => {
+        const groups: Record<string, item[]> = {};
+        items.forEach((item) => {
+            const cat = item.category || "Uncategorized";
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(item);
+        });
+        Object.keys(groups).forEach((cat) => {
+            groups[cat].sort((a, b) => a.display_order - b.display_order);
+        });
+        return groups;
+    }, [items]);
 
     const getLatestSubmissionForItem = (itemId: number) => {
         const teamSubmissions = submissions
@@ -137,46 +152,54 @@ const Items = (props: { teamId: number | string }) => {
                 </div>
             )}
             {itemsLoading || submissionsLoading ? <div>Loading...</div> : (
-                <ul>
-                    {items.sort((a, b) => a.id - b.id).map((item) => {
-                        const latestSubmission = getLatestSubmissionForItem(item.id);
+                <div className="space-y-6">
+                    {Object.keys(groupedItems).map((category) => (
+                        <section key={category}>
+                            <h2 className="mb-3 text-2xl font-bold text-purple-200">{category}</h2>
+                            <ul>
+                                {groupedItems[category].map((item) => {
+                                    const latestSubmission = getLatestSubmissionForItem(item.id);
+                                    const itemNumber = item.display_order - minItemId + 1;
 
-                        return (
-                            <li className="bg-purple-900 m-2 p-2 lg:p-3 rounded md:max-w-[50vw] lg:max-w-[40vw] xl:max-w-[30vw] 2xl:max-w-[25vw] 3xl:max-w-[20vw]" key={item.id}>
-                                <div className="lg:mb-3">{item.id - minItemId + 1 + ". " + item.item + " (" + item.points + " point" + (item.points === 1 ? "" : "s") + ")"}</div>
-                                {latestSubmission ?
-                                    <div className="space-y-2">
-                                        <div className="rounded bg-purple-700 px-2 py-1 text-sm font-semibold capitalize">
-                                            {latestSubmission.status === "pending" && "Pending approval"}
-                                            {latestSubmission.status === "approved" && "Approved"}
-                                            {latestSubmission.status === "denied" && "Denied - submit another photo"}
-                                        </div>
-                                        <Image
-                                            src={latestSubmission.image_url}
-                                            alt="submitted scavenger hunt item"
-                                            placeholder="blur"
-                                            blurDataURL={blurData}
-                                            width={600}
-                                            height={600}
-                                            sizes="100vh"
-                                            style={{ width: '100%', height: 'auto' }}
-                                        />
-                                        {latestSubmission.status === "denied" && (
-                                            <div>
-                                                choose file to submit
-                                                <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
-                                            </div>
-                                        )}
-                                    </div>
-                                    :
-                                    <div>
-                                        choose file to submit
-                                        <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
-                                    </div>}
-                            </li>
-                        );
-                    })}
-                </ul>
+                                    return (
+                                        <li className="bg-purple-900 m-2 p-2 lg:p-3 rounded md:max-w-[50vw] lg:max-w-[40vw] xl:max-w-[30vw] 2xl:max-w-[25vw] 3xl:max-w-[20vw]" key={item.id}>
+                                            <div className="lg:mb-3">{itemNumber + ". " + item.item + " (" + item.points + " point" + (item.points === 1 ? "" : "s") + ")"}</div>
+                                            {latestSubmission ?
+                                                <div className="space-y-2">
+                                                    <div className="rounded bg-purple-700 px-2 py-1 text-sm font-semibold capitalize">
+                                                        {latestSubmission.status === "pending" && "Pending approval"}
+                                                        {latestSubmission.status === "approved" && "Approved"}
+                                                        {latestSubmission.status === "denied" && "Denied - submit another photo"}
+                                                    </div>
+                                                    <Image
+                                                        src={latestSubmission.image_url}
+                                                        alt="submitted scavenger hunt item"
+                                                        placeholder="blur"
+                                                        blurDataURL={blurData}
+                                                        width={600}
+                                                        height={600}
+                                                        sizes="100vh"
+                                                        style={{ width: '100%', height: 'auto' }}
+                                                    />
+                                                    {latestSubmission.status === "denied" && (
+                                                        <div>
+                                                            choose file to submit
+                                                            <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                :
+                                                <div>
+                                                    choose file to submit
+                                                    <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
+                                                </div>}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    ))}
+                </div>
             )}
         </div>
     );

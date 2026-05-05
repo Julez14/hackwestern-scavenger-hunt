@@ -1,3 +1,8 @@
 table:
   name: items
   schema: public
+select_permissions:
+  - role: public
+    permission:
+      columns: "*"
+      filter: {}
