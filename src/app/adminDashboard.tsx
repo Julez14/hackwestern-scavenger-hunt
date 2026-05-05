@@ -10,6 +10,7 @@ const axiosItems = create("items");
 const axiosSubmissions = create("submissions");
 const axiosApproveSubmission = create("approve-submission");
 const axiosDenySubmission = create("deny-submission");
+const axiosResetGame = create("reset-game");
 
 const getItems = async () => getResponse(axiosItems);
 const getSubmissions = async () => getResponse(axiosSubmissions);
@@ -52,6 +53,7 @@ const AdminDashboard = (props: { adminId: string }) => {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);
     const [reviewingId, setReviewingId] = useState<number | null>(null);
+    const [resettingGame, setResettingGame] = useState(false);
     const [uploadNotifications, setUploadNotifications] = useState<UploadNotification[]>([]);
     const seenPendingSubmissionIds = useRef<Set<number>>(new Set());
     const initialized = useRef(false);
@@ -145,6 +147,27 @@ const AdminDashboard = (props: { adminId: string }) => {
         }
     };
 
+    const resetGame = async () => {
+        const shouldReset = window.confirm("Reset the game? This deletes all submissions and sets every team score to 0.");
+
+        if (!shouldReset) {
+            return;
+        }
+
+        setResettingGame(true);
+
+        try {
+            await axiosResetGame.post("/", {
+                adminId: parseInt(adminId),
+            });
+            setUploadNotifications([]);
+            seenPendingSubmissionIds.current = new Set();
+            await loadDashboardData(false);
+        } finally {
+            setResettingGame(false);
+        }
+    };
+
     const getItemSubmissions = (itemId: number) => submissions
         .filter((submission) => submission.item_id === itemId)
         .sort((a, b) => {
@@ -157,9 +180,18 @@ const AdminDashboard = (props: { adminId: string }) => {
 
     return (
         <section className="w-full max-w-6xl space-y-4">
-            <div className="rounded bg-purple-950 p-4 text-white shadow">
-                <h2 className="text-2xl font-black">Admin Dashboard</h2>
-                <p className="text-sm text-purple-100">Review uploaded photos. Scores are awarded only when a pending submission is approved.</p>
+            <div className="flex flex-col gap-3 rounded bg-purple-950 p-4 text-white shadow sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 className="text-2xl font-black">Admin Dashboard</h2>
+                    <p className="text-sm text-purple-100">Review uploaded photos. Scores are awarded only when a pending submission is approved.</p>
+                </div>
+                <button
+                    className="rounded bg-red-200 px-4 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
+                    disabled={resettingGame}
+                    onClick={resetGame}
+                >
+                    {resettingGame ? "Resetting..." : "Reset game"}
+                </button>
             </div>
 
             {uploadNotifications.length > 0 && (

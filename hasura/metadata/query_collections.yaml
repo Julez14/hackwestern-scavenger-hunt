@@ -100,3 +100,13 @@
               reviewed_by
             }
           }
+      - name: reset_game
+        query: |
+          mutation reset_game ($adminId: Int!) {
+            reset_game(args: {p_admin_id:$adminId}) {
+              id
+              name
+              members
+              score
+            }
+          }

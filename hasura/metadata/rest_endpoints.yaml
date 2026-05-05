@@ -29,6 +29,15 @@
   definition:
     query:
       collection_name: scavenger_hunt
+      query_name: reset_game
+  methods:
+    - POST
+  name: reset_game
+  url: reset-game
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
       query_name: items
   methods:
     - GET
