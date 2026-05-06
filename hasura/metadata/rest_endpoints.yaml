@@ -65,6 +65,15 @@
   definition:
     query:
       collection_name: scavenger_hunt
+      query_name: unsubmit_submission
+  methods:
+    - POST
+  name: unsubmit_submission
+  url: unsubmit-submission/:submissionId
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
       query_name: items
   methods:
     - GET

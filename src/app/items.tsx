@@ -6,6 +6,7 @@ import { blurData } from "../../public/imgPlaceholder";
 
 const axiosInstanceItem = create("items");
 const axiosSubmissions = create("submissions");
+const axiosUnsubmitSubmission = create("unsubmit-submission");
 
 const getItems = async () => getResponse(axiosInstanceItem);
 const getSubmissions = async () => getResponse(axiosSubmissions);
@@ -43,6 +44,7 @@ const Items = (props: { teamId: number | string }) => {
     const [submissionsLoading, setSubmissionsLoading] = useState(true);
     const [refetchSubmissions, setRefetchSubmissions] = useState(false);
     const [reviewNotifications, setReviewNotifications] = useState<reviewNotification[]>([]);
+    const [unsubmittingId, setUnsubmittingId] = useState<number | null>(null);
     const reviewStatusRef = useRef<Map<number, submission["status"]>>(new Map());
     const reviewNotificationsInitialized = useRef(false);
 
@@ -136,6 +138,33 @@ const Items = (props: { teamId: number | string }) => {
         }
     }, [getAndUpdateItemsAndSubmissions, refetchSubmissions]);
 
+    const unsubmitSubmission = async (submission: submission) => {
+        const isApproved = submission.status === "approved";
+        const shouldUnsubmit = window.confirm(
+            isApproved
+                ? "Unsubmit this approved photo? Your team will lose these points until another photo is approved."
+                : "Unsubmit this photo? You can upload another one after it is removed."
+        );
+
+        if (!shouldUnsubmit) {
+            return;
+        }
+
+        setUnsubmittingId(submission.id);
+
+        try {
+            await axiosUnsubmitSubmission.post(`/${submission.id}`, {
+                teamId: Number(teamId),
+            });
+            setRefetchSubmissions(true);
+        } catch (error) {
+            console.error(error);
+            window.alert("Could not unsubmit this photo. Please try again.");
+        } finally {
+            setUnsubmittingId(null);
+        }
+    };
+
     return (
         <div>
             {reviewNotifications.length > 0 && (
@@ -181,6 +210,15 @@ const Items = (props: { teamId: number | string }) => {
                                                         sizes="100vh"
                                                         style={{ width: '100%', height: 'auto' }}
                                                     />
+                                                    {(latestSubmission.status === "pending" || latestSubmission.status === "approved") && (
+                                                        <button
+                                                            className="rounded bg-white px-3 py-1.5 text-sm font-bold text-purple-950 hover:bg-purple-100 disabled:opacity-60"
+                                                            disabled={unsubmittingId === latestSubmission.id}
+                                                            onClick={() => unsubmitSubmission(latestSubmission)}
+                                                        >
+                                                            {unsubmittingId === latestSubmission.id ? "Unsubmitting..." : "Unsubmit"}
+                                                        </button>
+                                                    )}
                                                     {latestSubmission.status === "denied" && (
                                                         <div>
                                                             choose file to submit

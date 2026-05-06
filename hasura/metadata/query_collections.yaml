@@ -110,6 +110,18 @@
               reviewed_by
             }
           }
+      - name: unsubmit_submission
+        query: |
+          mutation unsubmit_submission ($submissionId: Int!, $teamId: Int!) {
+            unsubmit_submission(args: {p_submission_id:$submissionId,p_team_id:$teamId}) {
+              id
+              team_id
+              item_id
+              status
+              reviewed_at
+              reviewed_by
+            }
+          }
       - name: deny_submission
         query: |
           mutation deny_submission ($submissionId: Int!, $adminId: Int!) {

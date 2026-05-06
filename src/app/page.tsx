@@ -64,9 +64,8 @@ export default function Home() {
         </li>
         <li>Pictures should have at least one of your teammates in it!</li>
         <li>
-          Only 1 image can be submitted per item, and once an image is
-          submitted, it cannot be deleted. &#40;but if you must, message me on
-          Discord&#41;
+          Only 1 active image can be submitted per item. You can unsubmit a
+          photo and upload another one if you need to replace it.
         </li>
       </ul>
       <Team />
