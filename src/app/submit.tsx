@@ -107,9 +107,13 @@ const Submit = (props: {
     }, [ipfsHash, itemId, setRefetchSubmissions, teamId]);
 
     return (
-        <div>
-            <input type="file" accept="image/*" onChange={handleImageChange} className="w-[100%]"/>
-            <br />
+        <div className="space-y-3">
+            <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hw-file-input"
+            />
             {selectedImage && 
                 <Image
                     src={URL.createObjectURL(selectedImage)}
@@ -117,12 +121,16 @@ const Submit = (props: {
                     width={0}
                     height={0}
                     sizes="100vh"
-                    style={{ width: '100%', height: 'auto', marginTop: '0.5rem', marginBottom: '0.5rem' }}
+                    className="h-auto w-full rounded-lg"
                 />
             }
-            {selectedImage && <button className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5" onClick={handleSubmit}>Submit</button>}
+            {selectedImage && (
+                <button className="hw-button-primary w-full" onClick={handleSubmit}>
+                    Submit photo
+                </button>
+            )}
             {isUploading &&
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-white text-2xl backdrop-blur-md">
+                <div className="hw-modal">
                     Uploading... Please wait...
                 </div>
             }

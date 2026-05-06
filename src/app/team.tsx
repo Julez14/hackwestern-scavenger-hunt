@@ -46,17 +46,34 @@ const Team = () => {
     }, []);
 
     return (
-        <div className="text-center bg-purple-600 px-6 py-1.5 rounded">
-            <h3 className="text-xl font-bold">Leaderboard</h3>
-            {loading ? <div>Loading...</div> : (
-            <ul className="list-decimal text-left">
-                <li>🥇 {teams[0].score} points | Team <b>{teams[0].name}</b></li>
-                <li>🥈 {teams[1].score} points | Team <b>{teams[1].name}</b></li>
-                <li>🥉 {teams[2].score} points | Team <b>{teams[2].name}</b></li>
-                <li>😣 {teams[3].score} points | Team <b>{teams[3].name}</b></li>
-                <li>😖 {teams[4].score} points | Team <b>{teams[4].name}</b></li>
-            </ul>)}
-        </div>
+        <section className="hw-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b border-violet-100 px-4 py-3">
+                <div>
+                    <div className="hw-overline">Live standings</div>
+                    <h2 className="hw-section-title">Leaderboard</h2>
+                </div>
+                <span className="hw-tag">Top 5</span>
+            </div>
+            {loading ? (
+                <div className="p-4 text-sm font-semibold text-medium">Loading leaderboard...</div>
+            ) : (
+                <ol className="divide-y divide-violet-100">
+                    {teams.slice(0, 5).map((team, index) => (
+                        <li key={team.id} className="flex items-center gap-3 px-4 py-3">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tinted text-sm font-black text-heavy">
+                                {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-bold text-heavy">Team {team.name}</div>
+                                <div className="text-xs font-semibold text-medium">
+                                    {team.score} point{team.score === 1 ? "" : "s"}
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </section>
     );
 };
 

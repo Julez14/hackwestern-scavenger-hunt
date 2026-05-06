@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const dico = localFont({
+  src: "../../public/fonts/dico/Dico.ttf",
+  variable: "--font-dico",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Hack Western 13 Scavenger Hunt 🐎",
@@ -16,12 +20,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${dico.variable} font-figtree`}>
         {children}
-        <footer style={{ textAlign: "center", padding: "1rem", fontSize: "0.875rem", color: "#666" }}>
-          <p>
+        <footer className="px-4 pb-5 text-center text-xs font-semibold text-medium">
+          <p className="mx-auto max-w-sm">
             v1 by Hunter Chen • v2 by Julian Laxman •{" "}
-            <a href="https://github.com/Julez14/hackwestern-scavenger-hunt" target="_blank" rel="noopener noreferrer">
+            <a
+              className="text-heavy underline decoration-dashed underline-offset-4"
+              href="https://github.com/Julez14/hackwestern-scavenger-hunt"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               GitHub
             </a>
           </p>

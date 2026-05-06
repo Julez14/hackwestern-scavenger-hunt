@@ -52,29 +52,64 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center px-3 pb-5 gap-3">
-      <div className="relative flex place-items-center bg-goose-spin bg-repeat bg-contain z-[-1] min-h-20 text-purple-700 font-black py-10 px-5 text-xl">
-        Welcome to the Hack Western 13 Organizer Scavenger Hunt! 🎉
-      </div>
-      <ul className="list-disc mx-3">
-        Rules:
-        <li>
-          Find items on the list, take and upload a picture to get points for
-          it, each item is worth a certain number of points
-        </li>
-        <li>Pictures should have at least one of your teammates in it!</li>
-        <li>
-          Only 1 active image can be submitted per item. You can unsubmit a
-          photo and upload another one if you need to replace it.
-        </li>
-      </ul>
-      <Team />
-      <div>
-        {teamId ? (
+    <main className="hw-shell">
+      <header className="space-y-3 pt-2">
+        <div className="hw-overline">Hack Western 13</div>
+        <div className="flex items-end justify-between gap-4">
           <div>
-            Team ID: {teamId}
+            <h1 className="font-dico text-[2.55rem] font-medium leading-[0.95] text-heavy sm:text-6xl">
+              Scavenger Hunt
+            </h1>
+            <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-medium">
+              Find prompts, upload proof, and watch the leaderboard shuffle in
+              real time.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <section className="hw-panel p-4">
+        <div className="hw-overline mb-3">Rules</div>
+        <ol className="space-y-3 text-sm font-semibold leading-6 text-heavy">
+          <li className="flex gap-3">
+            <span className="hw-tag h-7 w-7 shrink-0 justify-center px-0">
+              1
+            </span>
+            <span>
+              Find prompts on the list, take a photo, and upload it for points.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="hw-tag h-7 w-7 shrink-0 justify-center px-0">
+              2
+            </span>
+            <span>Photos should include at least one teammate.</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="hw-tag h-7 w-7 shrink-0 justify-center px-0">
+              3
+            </span>
+            <span>
+              Only one active image is allowed per prompt. Unsubmit to replace
+              it.
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <Team />
+
+      <section className="hw-panel p-4">
+        {teamId ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="hw-overline">Current Team</div>
+              <div className="text-lg font-bold text-heavy">
+                Team ID {teamId}
+              </div>
+            </div>
             <button
-              className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+              className="hw-button-secondary w-full sm:w-auto"
               onClick={() => {
                 setTeamId("");
                 localStorage.removeItem("teamId");
@@ -84,14 +119,18 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <div>
-            Enter your team ID:
-            <input
-              onChange={handleInputChange}
-              className="text-black ml-2 max-w-[25%]"
-            ></input>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="hw-overline mb-2 block">Enter Team ID</span>
+              <input
+                onChange={handleInputChange}
+                className="hw-input"
+                inputMode="numeric"
+                placeholder="Team ID"
+              />
+            </label>
             <button
-              className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+              className="hw-button-primary w-full"
               onClick={() => {
                 setTeamId(inputValue);
                 localStorage.setItem("teamId", inputValue);
@@ -101,91 +140,102 @@ export default function Home() {
             </button>
           </div>
         )}
-      </div>
+      </section>
       {teamId === ADMIN_TEAM_ID ? (
         <AdminDashboard adminId={ADMIN_TEAM_ID} />
       ) : validTeamIds.includes(parseInt(teamId)) ? (
-        <div>
-          <div>
+        <div className="space-y-4">
+          <section className="hw-panel p-4">
             {teams.length > 0 ? (
               teams
                 .filter((team) => team.id == teamId)
                 .map((team) =>
                   !updatingTeamName ? (
-                    <div key={team.id} className="text-center space-y-2">
+                    <div key={team.id} className="space-y-3">
                       <div>
-                        Team {team.name} | {team.score} points
+                        <div className="hw-overline">Your Team</div>
+                        <div className="font-dico text-3xl font-medium text-heavy">
+                          {team.name}
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-emphasis">
+                          {team.score} point{team.score === 1 ? "" : "s"}
+                        </div>
                       </div>
-                      <div>
-                        Members:{" "}
+                      <div className="rounded-lg bg-highlight px-3 py-2 text-sm font-semibold text-medium">
                         {team.members
                           .map((member: string) => member)
                           .join(", ")}
                       </div>
                       <button
-                        className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
+                        className="hw-button-secondary w-full"
                         onClick={() => setUpdatingTeamName(true)}
                       >
                         Edit Team Name
                       </button>
                     </div>
                   ) : (
-                    <div key={team.id} className="text-center">
-                      <input
-                        className="text-black pl-1"
-                        onChange={(e) => setTeamName(e.target.value)}
-                        placeholder="new team name"
-                      />
-                      <button
-                        className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
-                        onClick={() => {
-                          setUpdatingTeamName(false);
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="bg-white text-black rounded px-2.5 hover:bg-gray-200 ease-in-out duration-100 ml-2.5"
-                        onClick={() => {
-                          setIsUpdatingTeamName(true);
-                          setUpdatingTeamName(false);
-                          axiosUpdateName
-                            .post(`/${teamId}`, {
-                              object: {
-                                name: teamName,
-                              },
-                            })
-                            .then(() => {
-                              getTeams().then((data) => {
-                                console.log(
-                                  "teams after updating name: ",
-                                  data,
-                                );
-                                setTeams(data.teams);
+                    <div key={team.id} className="space-y-3">
+                      <label className="block">
+                        <span className="hw-overline mb-2 block">
+                          New team name
+                        </span>
+                        <input
+                          className="hw-input"
+                          onChange={(e) => setTeamName(e.target.value)}
+                          placeholder="New team name"
+                        />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          className="hw-button-secondary"
+                          onClick={() => {
+                            setUpdatingTeamName(false);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="hw-button-primary"
+                          onClick={() => {
+                            setIsUpdatingTeamName(true);
+                            setUpdatingTeamName(false);
+                            axiosUpdateName
+                              .post(`/${teamId}`, {
+                                object: {
+                                  name: teamName,
+                                },
+                              })
+                              .then(() => {
+                                getTeams().then((data) => {
+                                  console.log(
+                                    "teams after updating name: ",
+                                    data,
+                                  );
+                                  setTeams(data.teams);
+                                });
                               });
-                            });
-                        }}
-                      >
-                        Save
-                      </button>
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
                     </div>
                   ),
                 )
             ) : (
-              <div>Loading...</div>
+              <div className="hw-muted">Loading team...</div>
             )}
-          </div>
-          <br />
-          Items:
+          </section>
+
           <Items teamId={teamId} />
         </div>
       ) : teamId ? (
-        <div>Invalid Team ID</div>
+        <div className="hw-panel p-4 text-sm font-bold text-red-950">
+          Invalid Team ID
+        </div>
       ) : null}
       {isUpdatingTeamName && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 text-white text-2xl backdrop-blur-md">
-          Updating... Please wait...
-        </div>
+        <div className="hw-modal">Updating... Please wait...</div>
       )}
     </main>
   );

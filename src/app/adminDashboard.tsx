@@ -45,9 +45,9 @@ type UploadNotification = {
 };
 
 const statusStyles: Record<Submission["status"], string> = {
-    pending: "bg-yellow-200 text-yellow-950",
-    approved: "bg-green-200 text-green-950",
-    denied: "bg-red-200 text-red-950",
+    pending: "hw-status-pending",
+    approved: "hw-status-approved",
+    denied: "hw-status-denied",
 };
 
 const AdminDashboard = (props: { adminId: string }) => {
@@ -216,25 +216,26 @@ const AdminDashboard = (props: { adminId: string }) => {
         });
 
     return (
-        <section className="w-full max-w-6xl space-y-4">
-            <div className="flex flex-col gap-3 rounded bg-purple-950 p-4 text-white shadow lg:flex-row lg:items-center lg:justify-between">
+        <section className="w-full space-y-4">
+            <div className="hw-panel flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h2 className="text-2xl font-black">Admin Dashboard</h2>
-                    <p className="text-sm text-purple-100">Review uploaded photos. Scores are awarded only when a pending submission is approved.</p>
+                    <div className="hw-overline">Organizer tools</div>
+                    <h2 className="hw-section-title">Admin Dashboard</h2>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-medium">Review uploaded photos. Scores are awarded when a pending submission is approved.</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <label className="flex items-center justify-between gap-3 rounded bg-purple-800 px-4 py-2 font-bold text-white">
+                    <label className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-highlight px-4 py-2 text-sm font-bold text-heavy">
                         <span>Auto-approve</span>
                         <input
                             type="checkbox"
-                            className="h-5 w-5 accent-green-300"
+                            className="h-5 w-5 accent-[#8F57AD]"
                             checked={autoApprovalEnabled}
                             disabled={updatingAutoApproval}
                             onChange={(event) => updateAutoApproval(event.target.checked)}
                         />
                     </label>
                     <button
-                        className="rounded bg-red-200 px-4 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
+                        className="hw-button-danger"
                         disabled={resettingGame}
                         onClick={resetGame}
                     >
@@ -243,11 +244,11 @@ const AdminDashboard = (props: { adminId: string }) => {
                 </div>
             </div>
 
-            <div className="rounded bg-purple-800 p-4">
-                <h3 className="mb-2 text-lg font-bold text-purple-100">Active Team IDs</h3>
+            <div className="hw-panel p-4">
+                <h3 className="hw-overline mb-3">Active Team IDs</h3>
                 <div className="flex flex-wrap gap-2">
                     {teams.map((team) => (
-                        <span key={team.id} className="rounded bg-purple-950 px-2 py-1 text-sm font-medium text-white">
+                        <span key={team.id} className="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-heavy shadow-hw-button">
                             {team.id}: {team.name}
                         </span>
                     ))}
@@ -255,12 +256,12 @@ const AdminDashboard = (props: { adminId: string }) => {
             </div>
 
             {uploadNotifications.length > 0 && (
-                <div className="sticky top-2 z-30 space-y-2 rounded bg-white p-3 text-purple-950 shadow-lg">
+                <div className="sticky top-2 z-30 space-y-2 rounded-lg bg-white p-3 text-heavy shadow-hw-card">
                     <div className="font-bold">New uploads</div>
                     {uploadNotifications.map((notification) => (
                         <button
                             key={notification.id}
-                            className="block w-full rounded bg-purple-100 px-3 py-2 text-left text-sm font-semibold hover:bg-purple-200"
+                            className="block w-full rounded-lg bg-tinted px-3 py-2 text-left text-sm font-bold hover:bg-active"
                             onClick={() => scrollToItem(notification.itemId, notification.id)}
                         >
                             Team {teamsById.get(String(notification.teamId))?.name || notification.teamId} uploaded a photo for prompt {notification.itemId - minItemId + 1}.
@@ -269,40 +270,45 @@ const AdminDashboard = (props: { adminId: string }) => {
                 </div>
             )}
 
-            {loading ? <div>Loading admin dashboard...</div> : (
-                <div className="space-y-8">
-                    {items.length === 0 && <div className="rounded bg-purple-900 p-4">No prompts have been added yet.</div>}
+            {loading ? <div className="hw-panel p-4 text-sm font-semibold text-medium">Loading admin dashboard...</div> : (
+                <div className="space-y-7">
+                    {items.length === 0 && <div className="hw-panel p-4 text-sm font-semibold text-medium">No prompts have been added yet.</div>}
                     {Object.keys(groupedItems).map((category) => (
-                        <section key={category}>
-                            <h2 className="mb-4 text-3xl font-bold text-purple-200">{category}</h2>
-                            <div className="space-y-5">
+                        <section key={category} className="space-y-3">
+                            <h2 className="hw-overline">{category}</h2>
+                            <div className="space-y-4">
                                 {groupedItems[category].map((item) => {
                                     const itemSubmissions = getItemSubmissions(item.id);
                                     const itemNumber = item.display_order - minItemId + 1;
 
                                     return (
-                                        <section id={`prompt-${item.id}`} key={item.id} className="scroll-mt-6 rounded bg-purple-900 p-4">
-                                            <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                                                <h3 className="text-xl font-bold">{itemNumber}. {item.item}</h3>
-                                                <div className="rounded bg-purple-700 px-3 py-1 text-sm font-semibold">{item.points} point{item.points === 1 ? "" : "s"}</div>
+                                        <section id={`prompt-${item.id}`} key={item.id} className="hw-card scroll-mt-6 overflow-hidden">
+                                            <div className="flex flex-col justify-between gap-2 border-b border-violet-100 px-4 py-3 sm:flex-row sm:items-center">
+                                                <div className="flex items-start gap-3">
+                                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tinted text-sm font-black text-heavy">
+                                                        {itemNumber}
+                                                    </span>
+                                                    <h3 className="font-bold leading-5 text-heavy">{item.item}</h3>
+                                                </div>
+                                                <div className="hw-tag w-fit">{item.points} point{item.points === 1 ? "" : "s"}</div>
                                             </div>
 
                                             {itemSubmissions.length === 0 ? (
-                                                <div className="rounded border border-dashed border-purple-400 p-4 text-purple-100">No submissions yet.</div>
+                                                <div className="m-4 rounded-lg border border-dashed border-violet-200 bg-highlight p-4 text-sm font-semibold text-medium">No submissions yet.</div>
                                             ) : (
-                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                                <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
                                                     {itemSubmissions.map((submission) => {
                                                         const submittingTeam = teamsById.get(String(submission.team_id));
                                                         const isReviewing = reviewingId === submission.id;
 
                                                         return (
-                                                            <article key={submission.id} className="space-y-2 rounded bg-purple-950 p-3">
+                                                            <article key={submission.id} className="space-y-3 rounded-lg bg-highlight p-3">
                                                                 <div className="flex items-start justify-between gap-2">
                                                                     <div>
-                                                                        <div className="font-bold">Team {submittingTeam?.name || submission.team_id}</div>
-                                                                        <div className="text-xs text-purple-200">{new Date(submission.time_submitted).toLocaleString()}</div>
+                                                                        <div className="font-bold text-heavy">Team {submittingTeam?.name || submission.team_id}</div>
+                                                                        <div className="text-xs font-semibold text-medium">{new Date(submission.time_submitted).toLocaleString()}</div>
                                                                     </div>
-                                                                    <span className={`rounded px-2 py-1 text-xs font-bold capitalize ${statusStyles[submission.status]}`}>
+                                                                    <span className={`rounded-lg px-2 py-1 text-xs font-bold capitalize ${statusStyles[submission.status]}`}>
                                                                         {submission.status}
                                                                     </span>
                                                                 </div>
@@ -315,20 +321,20 @@ const AdminDashboard = (props: { adminId: string }) => {
                                                                     width={600}
                                                                     height={600}
                                                                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                                                                    className="h-auto w-full rounded"
+                                                                    className="h-auto w-full rounded-lg"
                                                                 />
 
                                                                 {submission.status === "pending" ? (
                                                                     <div className="grid grid-cols-2 gap-2">
                                                                         <button
-                                                                            className="rounded bg-green-200 px-3 py-2 font-bold text-green-950 hover:bg-green-300 disabled:opacity-60"
+                                                                            className="hw-button-success"
                                                                             disabled={isReviewing}
                                                                             onClick={() => reviewSubmission(submission, "approve")}
                                                                         >
                                                                             Approve
                                                                         </button>
                                                                         <button
-                                                                            className="rounded bg-red-200 px-3 py-2 font-bold text-red-950 hover:bg-red-300 disabled:opacity-60"
+                                                                            className="hw-button-danger"
                                                                             disabled={isReviewing}
                                                                             onClick={() => reviewSubmission(submission, "deny")}
                                                                         >
@@ -337,11 +343,11 @@ const AdminDashboard = (props: { adminId: string }) => {
                                                                     </div>
                                                                 ) : submission.status === "approved" ? (
                                                                     <div className="space-y-2">
-                                                                        <div className="rounded bg-purple-800 px-3 py-2 text-sm capitalize">
+                                                                        <div className="rounded-lg bg-white px-3 py-2 text-sm font-semibold capitalize text-medium">
                                                                             Approved {submission.reviewed_at ? `at ${new Date(submission.reviewed_at).toLocaleString()}` : ""}
                                                                         </div>
                                                                         <button
-                                                                            className="w-full rounded bg-yellow-200 px-3 py-2 font-bold text-yellow-950 hover:bg-yellow-300 disabled:opacity-60"
+                                                                            className="w-full rounded-lg bg-yellow-100 px-3 py-2 font-bold text-yellow-950 hover:bg-yellow-200 disabled:opacity-60"
                                                                             disabled={isReviewing}
                                                                             onClick={() => undoApproval(submission)}
                                                                         >
@@ -349,7 +355,7 @@ const AdminDashboard = (props: { adminId: string }) => {
                                                                         </button>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="rounded bg-purple-800 px-3 py-2 text-sm capitalize">
+                                                                    <div className="rounded-lg bg-white px-3 py-2 text-sm font-semibold capitalize text-medium">
                                                                         {submission.status} {submission.reviewed_at ? `at ${new Date(submission.reviewed_at).toLocaleString()}` : ""}
                                                                     </div>
                                                                 )}

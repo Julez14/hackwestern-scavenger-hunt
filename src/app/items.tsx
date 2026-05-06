@@ -36,6 +36,18 @@ type reviewNotification = {
     status: "approved" | "denied";
 }
 
+const statusCopy: Record<submission["status"], string> = {
+    pending: "Pending approval",
+    approved: "Approved",
+    denied: "Denied - submit another photo",
+};
+
+const statusTone: Record<submission["status"], string> = {
+    pending: "hw-status-pending",
+    approved: "hw-status-approved",
+    denied: "hw-status-denied",
+};
+
 const Items = (props: { teamId: number | string }) => {
     const { teamId } = props;
     const [items, setItems] = useState<item[]>([]);
@@ -166,13 +178,13 @@ const Items = (props: { teamId: number | string }) => {
     };
 
     return (
-        <div>
+        <section className="space-y-5">
             {reviewNotifications.length > 0 && (
                 <div className="sticky top-2 z-20 mb-3 space-y-2">
                     {reviewNotifications.map((notification) => (
                         <button
                             key={notification.id}
-                            className="block w-full rounded bg-white px-3 py-2 text-left text-sm font-semibold text-purple-900 shadow"
+                            className="block w-full rounded-lg bg-white px-3 py-2 text-left text-sm font-bold text-heavy shadow-hw-button"
                             onClick={() => setReviewNotifications((current) => current.filter((item) => item.id !== notification.id))}
                         >
                             Submission for item {notification.itemId - minItemId + 1} was {notification.status}.
@@ -180,25 +192,37 @@ const Items = (props: { teamId: number | string }) => {
                     ))}
                 </div>
             )}
-            {itemsLoading || submissionsLoading ? <div>Loading...</div> : (
+            <div>
+                <div className="hw-overline">Prompts</div>
+                <h2 className="hw-section-title">Item list</h2>
+            </div>
+            {itemsLoading || submissionsLoading ? <div className="hw-panel p-4 text-sm font-semibold text-medium">Loading prompts...</div> : (
                 <div className="space-y-6">
                     {Object.keys(groupedItems).map((category) => (
-                        <section key={category}>
-                            <h2 className="mb-3 text-2xl font-bold text-purple-200">{category}</h2>
-                            <ul>
+                        <section key={category} className="space-y-3">
+                            <h3 className="hw-overline">{category}</h3>
+                            <ul className="space-y-3">
                                 {groupedItems[category].map((item) => {
                                     const latestSubmission = getLatestSubmissionForItem(item.id);
                                     const itemNumber = item.display_order - minItemId + 1;
 
                                     return (
-                                        <li className="bg-purple-900 m-2 p-2 lg:p-3 rounded md:max-w-[50vw] lg:max-w-[40vw] xl:max-w-[30vw] 2xl:max-w-[25vw] 3xl:max-w-[20vw]" key={item.id}>
-                                            <div className="lg:mb-3">{itemNumber + ". " + item.item + " (" + item.points + " point" + (item.points === 1 ? "" : "s") + ")"}</div>
+                                        <li className="hw-card overflow-hidden" key={item.id}>
+                                            <div className="flex items-start gap-3 border-b border-violet-100 px-4 py-3">
+                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tinted text-sm font-black text-heavy">
+                                                    {itemNumber}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-bold leading-5 text-heavy">{item.item}</div>
+                                                    <div className="mt-1 text-xs font-bold text-emphasis">
+                                                        {item.points} point{item.points === 1 ? "" : "s"}
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {latestSubmission ?
-                                                <div className="space-y-2">
-                                                    <div className="rounded bg-purple-700 px-2 py-1 text-sm font-semibold capitalize">
-                                                        {latestSubmission.status === "pending" && "Pending approval"}
-                                                        {latestSubmission.status === "approved" && "Approved"}
-                                                        {latestSubmission.status === "denied" && "Denied - submit another photo"}
+                                                <div className="space-y-3 p-4">
+                                                    <div className={`rounded-lg px-3 py-2 text-sm font-bold ${statusTone[latestSubmission.status]}`}>
+                                                        {statusCopy[latestSubmission.status]}
                                                     </div>
                                                     <Image
                                                         src={latestSubmission.image_url}
@@ -208,11 +232,11 @@ const Items = (props: { teamId: number | string }) => {
                                                         width={600}
                                                         height={600}
                                                         sizes="100vh"
-                                                        style={{ width: '100%', height: 'auto' }}
+                                                        className="h-auto w-full rounded-lg"
                                                     />
                                                     {(latestSubmission.status === "pending" || latestSubmission.status === "approved") && (
                                                         <button
-                                                            className="rounded bg-white px-3 py-1.5 text-sm font-bold text-purple-950 hover:bg-purple-100 disabled:opacity-60"
+                                                            className="hw-button-secondary w-full"
                                                             disabled={unsubmittingId === latestSubmission.id}
                                                             onClick={() => unsubmitSubmission(latestSubmission)}
                                                         >
@@ -220,15 +244,15 @@ const Items = (props: { teamId: number | string }) => {
                                                         </button>
                                                     )}
                                                     {latestSubmission.status === "denied" && (
-                                                        <div>
-                                                            choose file to submit
+                                                        <div className="space-y-2">
+                                                            <div className="hw-muted">Choose a new photo to submit.</div>
                                                             <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
                                                         </div>
                                                     )}
                                                 </div>
                                                 :
-                                                <div>
-                                                    choose file to submit
+                                                <div className="space-y-2 p-4">
+                                                    <div className="hw-muted">Choose a photo to submit.</div>
                                                     <Submit itemId={item.id} teamId={teamId} setRefetchSubmissions={setRefetchSubmissions} />
                                                 </div>}
                                         </li>
@@ -239,7 +263,7 @@ const Items = (props: { teamId: number | string }) => {
                     ))}
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
