@@ -8,6 +8,7 @@ import Team, { getTeams, team } from "./team";
 
 const axiosUpdateName = create("update-name-by-pk");
 const ADMIN_TEAM_ID = "6145";
+const SPECTATOR_TEAM_ID = "1111";
 
 export default function Home() {
   const validTeamIds = [7687, 6215, 9277, 1023, 4136];
@@ -143,6 +144,23 @@ export default function Home() {
       </section>
       {teamId === ADMIN_TEAM_ID ? (
         <AdminDashboard adminId={ADMIN_TEAM_ID} />
+      ) : teamId === SPECTATOR_TEAM_ID ? (
+        <div className="space-y-4">
+          <section className="hw-panel p-4">
+            <div className="space-y-2">
+              <div className="hw-overline">Spectator Mode</div>
+              <div className="font-dico text-3xl font-medium text-heavy">
+                All submissions
+              </div>
+              <p className="text-sm font-semibold leading-6 text-medium">
+                You can view submissions from every team. Uploading,
+                unsubmitting, and team edits are disabled.
+              </p>
+            </div>
+          </section>
+
+          <Items teamId={teamId} spectatorMode teams={teams} />
+        </div>
       ) : validTeamIds.includes(parseInt(teamId)) ? (
         <div className="space-y-4">
           <section className="hw-panel p-4">

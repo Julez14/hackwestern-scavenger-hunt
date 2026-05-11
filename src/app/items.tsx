@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Submit from "./submit";
 import Image from "next/image";
 import { blurData } from "../../public/imgPlaceholder";
+import type { team } from "./team";
 
 const axiosInstanceItem = create("items");
 const axiosSubmissions = create("submissions");
@@ -48,8 +49,8 @@ const statusTone: Record<submission["status"], string> = {
     denied: "hw-status-denied",
 };
 
-const Items = (props: { teamId: number | string }) => {
-    const { teamId } = props;
+const Items = (props: { teamId: number | string; spectatorMode?: boolean; teams?: team[] }) => {
+    const { teamId, spectatorMode = false, teams = [] } = props;
     const [items, setItems] = useState<item[]>([]);
     const [submissions, setSubmissions] = useState<submission[]>([]);
     const [itemsLoading, setItemsLoading] = useState(true);
@@ -57,14 +58,34 @@ const Items = (props: { teamId: number | string }) => {
     const [refetchSubmissions, setRefetchSubmissions] = useState(false);
     const [reviewNotifications, setReviewNotifications] = useState<reviewNotification[]>([]);
     const [unsubmittingId, setUnsubmittingId] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const reviewStatusRef = useRef<Map<number, submission["status"]>>(new Map());
     const reviewNotificationsInitialized = useRef(false);
 
     const minItemId = items.length > 0 ? Math.min(...items.map((item) => item.display_order)) : 0;
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+    const filteredItems = React.useMemo(() => {
+        if (!normalizedSearchQuery) {
+            return items;
+        }
+
+        return items.filter((item) => {
+            const itemNumber = item.display_order - minItemId + 1;
+            const searchableText = [
+                item.item,
+                item.category,
+                `${item.points} point${item.points === 1 ? "" : "s"}`,
+                `item ${itemNumber}`,
+                `${itemNumber}`,
+            ].join(" ").toLowerCase();
+
+            return searchableText.includes(normalizedSearchQuery);
+        });
+    }, [items, minItemId, normalizedSearchQuery]);
 
     const groupedItems = React.useMemo(() => {
         const groups: Record<string, item[]> = {};
-        items.forEach((item) => {
+        filteredItems.forEach((item) => {
             const cat = item.category || "Uncategorized";
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(item);
@@ -73,7 +94,7 @@ const Items = (props: { teamId: number | string }) => {
             groups[cat].sort((a, b) => a.display_order - b.display_order);
         });
         return groups;
-    }, [items]);
+    }, [filteredItems]);
 
     const getLatestSubmissionForItem = (itemId: number) => {
         const teamSubmissions = submissions
@@ -84,7 +105,30 @@ const Items = (props: { teamId: number | string }) => {
         return approvedSubmission || teamSubmissions[0];
     };
 
+    const getSubmissionsForItem = (itemId: number) => {
+        return submissions
+            .filter((submission) => submission.item_id == itemId)
+            .sort((a, b) => {
+                if (a.team_id !== b.team_id) {
+                    return a.team_id - b.team_id;
+                }
+
+                return new Date(b.time_submitted).getTime() - new Date(a.time_submitted).getTime();
+            });
+    };
+
+    const getTeamLabel = (submissionTeamId: number) => {
+        const submittingTeam = teams.find((team) => Number(team.id) === submissionTeamId);
+        return submittingTeam ? `Team ${submittingTeam.name}` : `Team ${submissionTeamId}`;
+    };
+
     const updateReviewNotifications = useCallback((nextSubmissions: submission[]) => {
+        if (spectatorMode) {
+            reviewStatusRef.current = new Map();
+            reviewNotificationsInitialized.current = true;
+            return;
+        }
+
         const nextStatuses = new Map<number, submission["status"]>();
         const newNotifications: reviewNotification[] = [];
 
@@ -113,7 +157,7 @@ const Items = (props: { teamId: number | string }) => {
         if (newNotifications.length > 0) {
             setReviewNotifications((current) => [...newNotifications, ...current].slice(0, 5));
         }
-    }, [teamId]);
+    }, [spectatorMode, teamId]);
 
     // fetch items and submissions
     const getAndUpdateItemsAndSubmissions = useCallback(() => {
@@ -151,6 +195,10 @@ const Items = (props: { teamId: number | string }) => {
     }, [getAndUpdateItemsAndSubmissions, refetchSubmissions]);
 
     const unsubmitSubmission = async (submission: submission) => {
+        if (spectatorMode) {
+            return;
+        }
+
         const isApproved = submission.status === "approved";
         const shouldUnsubmit = window.confirm(
             isApproved
@@ -194,16 +242,28 @@ const Items = (props: { teamId: number | string }) => {
             )}
             <div>
                 <div className="hw-overline">Prompts</div>
-                <h2 className="hw-section-title">Item list</h2>
+                <h2 className="hw-section-title">{spectatorMode ? "Submission gallery" : "Item list"}</h2>
             </div>
+            <label className="block">
+                <span className="hw-overline mb-2 block">Search items</span>
+                <input
+                    type="search"
+                    className="hw-input"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search by prompt, category, points, or item number"
+                    aria-label="Search scavenger hunt items"
+                />
+            </label>
             {itemsLoading || submissionsLoading ? <div className="hw-panel p-4 text-sm font-semibold text-medium">Loading prompts...</div> : (
                 <div className="space-y-6">
-                    {Object.keys(groupedItems).map((category) => (
+                    {Object.keys(groupedItems).length > 0 ? Object.keys(groupedItems).map((category) => (
                         <section key={category} className="space-y-3">
                             <h3 className="hw-overline">{category}</h3>
                             <ul className="space-y-3">
                                 {groupedItems[category].map((item) => {
                                     const latestSubmission = getLatestSubmissionForItem(item.id);
+                                    const itemSubmissions = spectatorMode ? getSubmissionsForItem(item.id) : [];
                                     const itemNumber = item.display_order - minItemId + 1;
 
                                     return (
@@ -219,7 +279,43 @@ const Items = (props: { teamId: number | string }) => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            {latestSubmission ?
+                                            {spectatorMode ? (
+                                                itemSubmissions.length > 0 ? (
+                                                    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+                                                        {itemSubmissions.map((submission) => (
+                                                            <article key={submission.id} className="space-y-3 rounded-lg bg-highlight p-3">
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="min-w-0">
+                                                                        <div className="truncate text-sm font-bold text-heavy">
+                                                                            {getTeamLabel(submission.team_id)}
+                                                                        </div>
+                                                                        <div className="text-xs font-semibold text-medium">
+                                                                            {new Date(submission.time_submitted).toLocaleString()}
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold ${statusTone[submission.status]}`}>
+                                                                        {submission.status}
+                                                                    </span>
+                                                                </div>
+                                                                <Image
+                                                                    src={submission.image_url}
+                                                                    alt={`${getTeamLabel(submission.team_id)} submission`}
+                                                                    placeholder="blur"
+                                                                    blurDataURL={blurData}
+                                                                    width={600}
+                                                                    height={600}
+                                                                    sizes="(min-width: 640px) 50vw, 100vw"
+                                                                    className="h-auto w-full rounded-lg"
+                                                                />
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4">
+                                                        <div className="hw-muted">No submissions yet.</div>
+                                                    </div>
+                                                )
+                                            ) : latestSubmission ?
                                                 <div className="space-y-3 p-4">
                                                     <div className={`rounded-lg px-3 py-2 text-sm font-bold ${statusTone[latestSubmission.status]}`}>
                                                         {statusCopy[latestSubmission.status]}
@@ -260,7 +356,11 @@ const Items = (props: { teamId: number | string }) => {
                                 })}
                             </ul>
                         </section>
-                    ))}
+                    )) : (
+                        <div className="hw-panel p-4 text-sm font-semibold text-medium">
+                            No items match your search.
+                        </div>
+                    )}
                 </div>
             )}
         </section>
