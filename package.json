@@ -11,6 +11,7 @@
   "dependencies": {
     "@web3-storage/w3up-client": "^12.5.0",
     "axios": "^1.6.8",
+    "jszip": "^3.10.1",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18"
