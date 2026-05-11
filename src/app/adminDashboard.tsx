@@ -260,7 +260,7 @@ const createGalleryHtml = (
                         </div>
                         <span>${escapeHtml(item.points)} points</span>
                     </div>
-                    <div class="photo-row">
+                    <div class="photo-grid">
                         ${submissionCards || `<div class="empty-row">No submissions for this prompt.</div>`}
                     </div>
                 </section>
@@ -298,8 +298,9 @@ const createGalleryHtml = (
         .prompt-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid #efe5f8; }
         .prompt-heading > span { flex: 0 0 auto; border-radius: 8px; background: #f5f2f6; padding: 7px 9px; color: #776780; font-size: 0.82rem; font-weight: 900; }
         .prompt { margin-bottom: 6px; color: #776780; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
-        .photo-row { display: flex; gap: 14px; overflow-x: auto; padding: 16px; align-items: flex-start; }
-        .photo-card { flex: 0 0 280px; overflow: hidden; border-radius: 8px; background: #f5f2f6; }
+        .photo-grid { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 16px; }
+        @media (min-width: 640px) { .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .photo-card { overflow: hidden; border-radius: 8px; background: #f5f2f6; }
         .photo-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px; }
         .photo-meta strong, .photo-meta span { display: block; }
         .photo-meta span { margin-top: 3px; color: #776780; font-size: 0.75rem; font-weight: 800; }
@@ -307,7 +308,7 @@ const createGalleryHtml = (
         .pending { background: #fef3c7; color: #713f12; }
         .approved { background: #dcfce7; color: #14532d; }
         .denied { background: #fee2e2; color: #7f1d1d; }
-        img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: #f5f2f6; }
+        img { display: block; width: 100%; height: auto; background: #f5f2f6; }
         .missing-photo { display: block; margin: 14px; border: 1px dashed #d7c2e9; border-radius: 8px; padding: 16px; color: #3d214c; font-weight: 800; text-decoration: none; background: #f5f2f6; }
         .empty-row, li { border-radius: 8px; background: #f5f2f6; padding: 7px 9px; }
         .empty-row { color: #776780; font-size: 0.9rem; font-weight: 800; }
