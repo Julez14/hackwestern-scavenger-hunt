@@ -2,7 +2,7 @@
 
 import JSZip from "jszip";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { blurData } from "../../public/imgPlaceholder";
 import create, { getResponse } from "./axiosInstance";
 import { getTeams, type team } from "./team";
@@ -15,6 +15,8 @@ const axiosUndoApproval = create("undo-approval");
 const axiosResetGame = create("reset-game");
 const axiosGameSettings = create("game-settings");
 const axiosSetAutoApproval = create("set-auto-approval");
+const axiosReplaceItems = create("replace-items");
+const axiosAddItem = create("add-item");
 
 const getItems = async () => getResponse(axiosItems);
 const getSubmissions = async () => getResponse(axiosSubmissions);
@@ -50,6 +52,7 @@ type ExportProgress = {
     completed: number;
     total: number;
     failed: number;
+    cancellable: boolean;
 };
 
 type ArchivedSubmission = Submission & {
@@ -67,6 +70,18 @@ type PhotoFailure = {
     submission_id: number;
     image_url: string;
     error: string;
+};
+
+type ParsedPrompt = {
+    item: string;
+    points: number;
+    category: string;
+    display_order: number;
+};
+
+type PromptParseResult = {
+    prompts: ParsedPrompt[];
+    errors: string[];
 };
 
 const statusStyles: Record<Submission["status"], string> = {
@@ -120,6 +135,83 @@ const downloadBlob = (blob: Blob, filename: string) => {
     URL.revokeObjectURL(url);
 };
 
+const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
+const promptsToPlaintext = (items: Item[]) => {
+    const sortedItems = [...items].sort((a, b) => a.display_order - b.display_order);
+    const lines: string[] = [];
+    let currentCategory = "";
+
+    sortedItems.forEach((item) => {
+        const category = item.category || "Uncategorized";
+
+        if (category !== currentCategory) {
+            if (lines.length > 0) {
+                lines.push("");
+            }
+            lines.push(`[${category}]`);
+            currentCategory = category;
+        }
+
+        lines.push(`${item.points} | ${item.item}`);
+    });
+
+    return `${lines.join("\n")}\n`;
+};
+
+const parsePromptsPlaintext = (text: string): PromptParseResult => {
+    const prompts: ParsedPrompt[] = [];
+    const errors: string[] = [];
+    let currentCategory = "Uncategorized";
+
+    text.split(/\r?\n/).forEach((rawLine, index) => {
+        const lineNumber = index + 1;
+        const line = rawLine.trim();
+
+        if (!line || line.startsWith("#")) {
+            return;
+        }
+
+        const categoryMatch = line.match(/^\[(.+)]$/);
+        if (categoryMatch) {
+            currentCategory = categoryMatch[1].trim() || "Uncategorized";
+            return;
+        }
+
+        const promptMatch = line.match(/^(\d+)\s*\|\s*(.+)$/);
+        if (!promptMatch) {
+            errors.push(`Line ${lineNumber}: use "points | prompt text" under an optional [Category] heading.`);
+            return;
+        }
+
+        const points = Number(promptMatch[1]);
+        const item = promptMatch[2].trim().replace(/\s+#\s*item_id:\d+\s*$/i, "");
+
+        if (!Number.isInteger(points) || points < 0) {
+            errors.push(`Line ${lineNumber}: points must be a whole number greater than or equal to 0.`);
+        }
+
+        if (!item) {
+            errors.push(`Line ${lineNumber}: prompt text cannot be empty.`);
+        }
+
+        if (Number.isInteger(points) && points >= 0 && item) {
+            prompts.push({
+                item,
+                points,
+                category: currentCategory,
+                display_order: prompts.length + 1,
+            });
+        }
+    });
+
+    if (prompts.length === 0) {
+        errors.push("Add at least one prompt before saving.");
+    }
+
+    return { prompts, errors };
+};
+
 const createGalleryHtml = (
     exportedAt: string,
     items: Item[],
@@ -134,30 +226,46 @@ const createGalleryHtml = (
         return new Date(a.time_submitted).getTime() - new Date(b.time_submitted).getTime();
     });
 
-    const cards = sortedSubmissions.map((submission) => {
-        const submittedAt = new Date(submission.time_submitted).toLocaleString();
-        const imageMarkup = submission.photo_path
-            ? `<img src="${escapeHtml(submission.photo_path)}" alt="${escapeHtml(`Team ${submission.team_name} submission for prompt ${submission.prompt_number}`)}">`
-            : `<a class="missing-photo" href="${escapeHtml(submission.image_url)}">Photo could not be saved locally. Open original URL.</a>`;
+    const promptSections = [...items]
+        .sort((a, b) => a.display_order - b.display_order)
+        .map((item) => {
+            const promptNumber = item.display_order - minItemDisplayOrder + 1;
+            const promptSubmissions = sortedSubmissions.filter((submission) => submission.item_id === item.id);
+            const submissionCards = promptSubmissions.map((submission) => {
+                const submittedAt = new Date(submission.time_submitted).toLocaleString();
+                const imageMarkup = submission.photo_path
+                    ? `<img src="${escapeHtml(submission.photo_path)}" alt="${escapeHtml(`Team ${submission.team_name} submission for prompt ${submission.prompt_number}`)}">`
+                    : `<a class="missing-photo" href="${escapeHtml(submission.image_url)}">Photo could not be saved locally. Open original URL.</a>`;
 
-        return `
-            <article class="card">
-                <div class="meta">
-                    <div>
-                        <div class="prompt">Prompt ${escapeHtml(submission.prompt_number)} - ${escapeHtml(submission.category)}</div>
-                        <h2>${escapeHtml(submission.item_prompt)}</h2>
+                return `
+                    <article class="photo-card">
+                        <div class="photo-meta">
+                            <div>
+                                <strong>Team ${escapeHtml(submission.team_name)}</strong>
+                                <span>${escapeHtml(submittedAt)}</span>
+                            </div>
+                            <span class="status ${escapeHtml(submission.status)}">${escapeHtml(submission.status)}</span>
+                        </div>
+                        ${imageMarkup}
+                    </article>
+                `;
+            }).join("");
+
+            return `
+                <section class="prompt-row">
+                    <div class="prompt-heading">
+                        <div>
+                            <div class="prompt">Prompt ${escapeHtml(promptNumber)} - ${escapeHtml(item.category)}</div>
+                            <h2>${escapeHtml(item.item)}</h2>
+                        </div>
+                        <span>${escapeHtml(item.points)} points</span>
                     </div>
-                    <span class="status ${escapeHtml(submission.status)}">${escapeHtml(submission.status)}</span>
-                </div>
-                ${imageMarkup}
-                <div class="details">
-                    <span>Team ${escapeHtml(submission.team_name)} (${escapeHtml(submission.team_id)})</span>
-                    <span>${escapeHtml(submission.item_points)} points</span>
-                    <span>${escapeHtml(submittedAt)}</span>
-                </div>
-            </article>
-        `;
-    }).join("");
+                    <div class="photo-row">
+                        ${submissionCards || `<div class="empty-row">No submissions for this prompt.</div>`}
+                    </div>
+                </section>
+            `;
+        }).join("");
 
     const teamRows = teams
         .map((currentTeam) => `<li><strong>${escapeHtml(currentTeam.name || currentTeam.id)}</strong> (${escapeHtml(currentTeam.id)}) - ${escapeHtml(currentTeam.score)} points</li>`)
@@ -185,18 +293,25 @@ const createGalleryHtml = (
         h1 { margin: 0; font-size: clamp(2rem, 5vw, 4rem); line-height: 0.98; }
         h2 { margin: 0; font-size: 1.05rem; line-height: 1.35; }
         .summary { margin-top: 12px; color: #776780; font-weight: 700; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; max-width: 1120px; margin: 0 auto; }
-        .card { overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 12px 34px rgba(61, 33, 76, 0.12); }
-        .meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid #efe5f8; }
+        .gallery { display: grid; gap: 20px; max-width: 1280px; margin: 0 auto; }
+        .prompt-row { max-width: none; margin: 0; overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 12px 34px rgba(61, 33, 76, 0.12); }
+        .prompt-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid #efe5f8; }
+        .prompt-heading > span { flex: 0 0 auto; border-radius: 8px; background: #f5f2f6; padding: 7px 9px; color: #776780; font-size: 0.82rem; font-weight: 900; }
         .prompt { margin-bottom: 6px; color: #776780; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+        .photo-row { display: flex; gap: 14px; overflow-x: auto; padding: 16px; align-items: flex-start; }
+        .photo-card { flex: 0 0 280px; overflow: hidden; border-radius: 8px; background: #f5f2f6; }
+        .photo-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px; }
+        .photo-meta strong, .photo-meta span { display: block; }
+        .photo-meta span { margin-top: 3px; color: #776780; font-size: 0.75rem; font-weight: 800; }
         .status { flex: 0 0 auto; border-radius: 8px; padding: 5px 8px; font-size: 0.75rem; font-weight: 900; text-transform: capitalize; }
         .pending { background: #fef3c7; color: #713f12; }
         .approved { background: #dcfce7; color: #14532d; }
         .denied { background: #fee2e2; color: #7f1d1d; }
-        img { display: block; width: 100%; height: auto; background: #f5f2f6; }
+        img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: #f5f2f6; }
         .missing-photo { display: block; margin: 14px; border: 1px dashed #d7c2e9; border-radius: 8px; padding: 16px; color: #3d214c; font-weight: 800; text-decoration: none; background: #f5f2f6; }
-        .details { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; color: #776780; font-size: 0.82rem; font-weight: 800; }
-        .details span, li { border-radius: 8px; background: #f5f2f6; padding: 7px 9px; }
+        .empty-row, li { border-radius: 8px; background: #f5f2f6; padding: 7px 9px; }
+        .empty-row { color: #776780; font-size: 0.9rem; font-weight: 800; }
+        li { color: #3d214c; }
         ul { display: grid; gap: 8px; padding: 0; list-style: none; }
     </style>
 </head>
@@ -214,8 +329,8 @@ const createGalleryHtml = (
         <h2>Prompts</h2>
         <ul>${promptRows}</ul>
     </section>
-    <main class="grid">
-        ${cards || `<article class="card"><div class="meta"><h2>No submissions were exported.</h2></div></article>`}
+    <main class="gallery">
+        ${promptSections || `<section class="prompt-row"><div class="prompt-heading"><h2>No prompts were exported.</h2></div></section>`}
     </main>
 </body>
 </html>`;
@@ -233,9 +348,21 @@ const AdminDashboard = (props: { adminId: string }) => {
     const [resettingGame, setResettingGame] = useState(false);
     const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
     const [lastExportSignature, setLastExportSignature] = useState("");
+    const [promptEditorOpen, setPromptEditorOpen] = useState(false);
+    const [promptText, setPromptText] = useState("");
+    const [promptErrors, setPromptErrors] = useState<string[]>([]);
+    const [savingPrompts, setSavingPrompts] = useState(false);
+    const [addPromptOpen, setAddPromptOpen] = useState(false);
+    const [addPromptText, setAddPromptText] = useState("");
+    const [addPromptPoints, setAddPromptPoints] = useState("5");
+    const [addPromptCategory, setAddPromptCategory] = useState("");
+    const [addPromptError, setAddPromptError] = useState("");
+    const [addingPrompt, setAddingPrompt] = useState(false);
     const [uploadNotifications, setUploadNotifications] = useState<UploadNotification[]>([]);
     const seenPendingSubmissionIds = useRef<Set<number>>(new Set());
     const initialized = useRef(false);
+    const exportAbortControllerRef = useRef<AbortController | null>(null);
+    const exportCompletionTimeoutRef = useRef<number | null>(null);
 
     const teamsById = useMemo(() => {
         const teamMap = new Map<string, team>();
@@ -257,6 +384,10 @@ const AdminDashboard = (props: { adminId: string }) => {
         ].join(":"))
         .sort()
         .join("|"), [submissions]);
+
+    const promptDraft = useMemo(() => parsePromptsPlaintext(promptText), [promptText]);
+
+    const gameIsReset = !loading && teams.length > 0 && submissions.length === 0 && teams.every((currentTeam) => Number(currentTeam.score) === 0);
 
     const groupedItems = useMemo(() => {
         const groups: Record<string, Item[]> = {};
@@ -319,6 +450,16 @@ const AdminDashboard = (props: { adminId: string }) => {
         return () => clearInterval(intervalId);
     }, [loadDashboardData]);
 
+    useEffect(() => {
+        return () => {
+            exportAbortControllerRef.current?.abort();
+
+            if (exportCompletionTimeoutRef.current) {
+                clearTimeout(exportCompletionTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const scrollToItem = (itemId: number, notificationId: number) => {
         document.getElementById(`prompt-${itemId}`)?.scrollIntoView({
             behavior: "smooth",
@@ -370,29 +511,157 @@ const AdminDashboard = (props: { adminId: string }) => {
         }
     };
 
+    const openPromptEditor = () => {
+        if (!gameIsReset) {
+            return;
+        }
+
+        setPromptText(promptsToPlaintext(items));
+        setPromptErrors([]);
+        setAddPromptOpen(false);
+        setPromptEditorOpen(true);
+    };
+
+    const importPromptFile = async (event: ChangeEvent<HTMLInputElement>) => {
+        if (!gameIsReset) {
+            return;
+        }
+
+        const file = event.target.files?.[0];
+        event.target.value = "";
+
+        if (!file) {
+            return;
+        }
+
+        try {
+            setPromptText(await file.text());
+            setPromptErrors([]);
+            setAddPromptOpen(false);
+            setPromptEditorOpen(true);
+        } catch (error) {
+            console.error(error);
+            setPromptErrors(["Could not read that file. Please try another plaintext file."]);
+        }
+    };
+
+    const savePrompts = async () => {
+        const parsedPrompts = parsePromptsPlaintext(promptText);
+
+        if (!gameIsReset) {
+            setPromptErrors(["Prompt list editing is only available after the game has been reset. Use Add Prompt during a live game."]);
+            return;
+        }
+
+        if (parsedPrompts.errors.length > 0) {
+            setPromptErrors(parsedPrompts.errors);
+            return;
+        }
+
+        setSavingPrompts(true);
+        setPromptErrors([]);
+
+        try {
+            const response = await axiosReplaceItems.post("/", {
+                adminId: parseInt(adminId),
+                items: parsedPrompts.prompts,
+            });
+            const updatedItems = response.data?.replace_items || [];
+            setItems(updatedItems);
+            setPromptText(promptsToPlaintext(updatedItems));
+            setPromptEditorOpen(false);
+            await loadDashboardData(false);
+        } catch (error) {
+            console.error(error);
+            setPromptErrors(["Could not save prompts. If you removed prompts with submissions, export/reset the game first or keep those prompt rows."]);
+        } finally {
+            setSavingPrompts(false);
+        }
+    };
+
+    const addPrompt = async () => {
+        const prompt = addPromptText.trim();
+        const points = Number(addPromptPoints);
+        const category = addPromptCategory.trim() || "Uncategorized";
+
+        if (!prompt) {
+            setAddPromptError("Prompt text cannot be empty.");
+            return;
+        }
+
+        if (!Number.isInteger(points) || points < 0) {
+            setAddPromptError("Points must be a whole number greater than or equal to 0.");
+            return;
+        }
+
+        setAddingPrompt(true);
+        setAddPromptError("");
+
+        try {
+            const response = await axiosAddItem.post("/", {
+                adminId: parseInt(adminId),
+                item: prompt,
+                points,
+                category,
+            });
+            const updatedItems = response.data?.add_item || [];
+            setItems(updatedItems);
+            setAddPromptText("");
+            setAddPromptPoints("5");
+            setAddPromptCategory("");
+            setAddPromptOpen(false);
+            await loadDashboardData(false);
+        } catch (error) {
+            console.error(error);
+            setAddPromptError("Could not add this prompt. Please try again.");
+        } finally {
+            setAddingPrompt(false);
+        }
+    };
+
+    const cancelExportArchive = () => {
+        exportAbortControllerRef.current?.abort();
+        setExportProgress((currentProgress) => currentProgress ? {
+            ...currentProgress,
+            phase: "Cancelling export",
+            cancellable: false,
+        } : currentProgress);
+    };
+
     const exportGameArchive = useCallback(async () => {
         if (exportProgress) {
             return false;
+        }
+
+        if (exportCompletionTimeoutRef.current) {
+            clearTimeout(exportCompletionTimeoutRef.current);
+            exportCompletionTimeoutRef.current = null;
         }
 
         const exportedAt = new Date().toISOString();
         const archiveDate = formatArchiveDate(new Date(exportedAt));
         const archiveFilename = `hackwestern-scavenger-hunt-${archiveDate}.zip`;
         const zip = new JSZip();
+        const abortController = new AbortController();
         const failures: PhotoFailure[] = [];
         const archivedSubmissions: ArchivedSubmission[] = [];
         const sortedItems = [...items].sort((a, b) => a.display_order - b.display_order);
         const total = submissions.length;
+
+        exportAbortControllerRef.current = abortController;
 
         setExportProgress({
             phase: "Preparing archive",
             completed: 0,
             total,
             failed: 0,
+            cancellable: true,
         });
 
         try {
             for (let index = 0; index < submissions.length; index += 1) {
+                abortController.signal.throwIfAborted();
+
                 const submission = submissions[index];
                 const item = items.find((currentItem) => currentItem.id === submission.item_id);
                 const submittingTeam = teamsById.get(String(submission.team_id));
@@ -408,11 +677,13 @@ const AdminDashboard = (props: { adminId: string }) => {
                     completed: index,
                     total,
                     failed: failures.length,
+                    cancellable: true,
                 });
 
                 try {
                     const response = await fetch(submission.image_url, {
                         cache: "no-store",
+                        signal: abortController.signal,
                     });
 
                     if (!response.ok) {
@@ -420,10 +691,16 @@ const AdminDashboard = (props: { adminId: string }) => {
                     }
 
                     const photoBlob = await response.blob();
+                    abortController.signal.throwIfAborted();
+
                     const extension = getImageExtension(photoBlob.type, submission.image_url);
                     photoPath = `${teamFolder}/prompt-${promptNumberSlug}-${submission.status}-submission-${submission.id}.${extension}`;
                     zip.file(photoPath, photoBlob);
                 } catch (error) {
+                    if (abortController.signal.aborted || isAbortError(error)) {
+                        throw error;
+                    }
+
                     photoError = error instanceof Error ? error.message : "Unknown photo download error";
                     failures.push({
                         submission_id: submission.id,
@@ -449,8 +726,11 @@ const AdminDashboard = (props: { adminId: string }) => {
                     completed: index + 1,
                     total,
                     failed: failures.length,
+                    cancellable: true,
                 });
             }
+
+            abortController.signal.throwIfAborted();
 
             const manifest = {
                 exported_at: exportedAt,
@@ -464,6 +744,7 @@ const AdminDashboard = (props: { adminId: string }) => {
             };
 
             zip.file("manifest.json", JSON.stringify(manifest, null, 2));
+            zip.file("prompts.txt", promptsToPlaintext(sortedItems));
             zip.file("gallery.html", createGalleryHtml(exportedAt, sortedItems, teams, archivedSubmissions, failures));
 
             setExportProgress({
@@ -471,9 +752,12 @@ const AdminDashboard = (props: { adminId: string }) => {
                 completed: total,
                 total,
                 failed: failures.length,
+                cancellable: true,
             });
 
             const archiveBlob = await zip.generateAsync({ type: "blob" });
+            abortController.signal.throwIfAborted();
+
             downloadBlob(archiveBlob, archiveFilename);
             setLastExportSignature(submissionArchiveSignature);
 
@@ -482,9 +766,13 @@ const AdminDashboard = (props: { adminId: string }) => {
                 completed: total,
                 total,
                 failed: failures.length,
+                cancellable: false,
             });
 
-            window.setTimeout(() => setExportProgress(null), 1800);
+            exportCompletionTimeoutRef.current = window.setTimeout(() => {
+                setExportProgress(null);
+                exportCompletionTimeoutRef.current = null;
+            }, 1800);
 
             if (failures.length > 0) {
                 window.alert(`${failures.length} photo${failures.length === 1 ? "" : "s"} could not be saved locally. The archive still includes their original URLs in manifest.json and gallery.html.`);
@@ -492,10 +780,31 @@ const AdminDashboard = (props: { adminId: string }) => {
 
             return true;
         } catch (error) {
+            if (abortController.signal.aborted || isAbortError(error)) {
+                setExportProgress({
+                    phase: "Export cancelled",
+                    completed: archivedSubmissions.length,
+                    total,
+                    failed: failures.length,
+                    cancellable: false,
+                });
+
+                exportCompletionTimeoutRef.current = window.setTimeout(() => {
+                    setExportProgress(null);
+                    exportCompletionTimeoutRef.current = null;
+                }, 1200);
+
+                return false;
+            }
+
             console.error(error);
             window.alert("Could not export the archive. Please try again.");
             setExportProgress(null);
             return false;
+        } finally {
+            if (exportAbortControllerRef.current === abortController) {
+                exportAbortControllerRef.current = null;
+            }
         }
     }, [autoApprovalEnabled, exportProgress, items, minItemId, submissionArchiveSignature, submissions, teams, teamsById]);
 
@@ -569,6 +878,24 @@ const AdminDashboard = (props: { adminId: string }) => {
                         {exportProgress ? "Exporting..." : "Export archive"}
                     </button>
                     <button
+                        className="hw-button-secondary"
+                        disabled={loading || savingPrompts || !gameIsReset}
+                        onClick={promptEditorOpen ? () => setPromptEditorOpen(false) : openPromptEditor}
+                    >
+                        {promptEditorOpen ? "Close prompts" : "Edit prompts"}
+                    </button>
+                    <button
+                        className="hw-button-secondary"
+                        disabled={loading || addingPrompt}
+                        onClick={() => {
+                            setAddPromptOpen((open) => !open);
+                            setPromptEditorOpen(false);
+                            setAddPromptError("");
+                        }}
+                    >
+                        {addPromptOpen ? "Close add" : "Add prompt"}
+                    </button>
+                    <button
                         className="hw-button-danger"
                         disabled={resettingGame || Boolean(exportProgress)}
                         onClick={resetGame}
@@ -590,8 +917,18 @@ const AdminDashboard = (props: { adminId: string }) => {
                                 </div>
                             )}
                         </div>
-                        <div className="text-sm font-bold text-medium">
-                            {exportProgress.completed} / {exportProgress.total}
+                        <div className="flex items-center gap-3">
+                            <div className="text-sm font-bold text-medium">
+                                {exportProgress.completed} / {exportProgress.total}
+                            </div>
+                            {exportProgress.cancellable && (
+                                <button
+                                    className="hw-button-danger min-h-9 px-3 py-1 text-xs"
+                                    onClick={cancelExportArchive}
+                                >
+                                    Cancel
+                                </button>
+                            )}
                         </div>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-highlight">
@@ -601,6 +938,142 @@ const AdminDashboard = (props: { adminId: string }) => {
                                 width: `${exportProgress.total === 0 ? 100 : Math.round((exportProgress.completed / exportProgress.total) * 100)}%`,
                             }}
                         />
+                    </div>
+                </div>
+            )}
+
+            {addPromptOpen && (
+                <div className="hw-panel space-y-4 p-4">
+                    <div>
+                        <div className="hw-overline">New prompt</div>
+                        <div className="mt-1 text-sm font-bold text-heavy">
+                            Prompt {items.length + 1}
+                        </div>
+                    </div>
+
+                    <label className="block">
+                        <span className="hw-overline mb-2 block">Prompt text</span>
+                        <textarea
+                            className="hw-input min-h-28 resize-y text-sm leading-6"
+                            value={addPromptText}
+                            onChange={(event) => {
+                                setAddPromptText(event.target.value);
+                                setAddPromptError("");
+                            }}
+                        />
+                    </label>
+
+                    <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                        <label className="block">
+                            <span className="hw-overline mb-2 block">Points</span>
+                            <input
+                                className="hw-input"
+                                inputMode="numeric"
+                                value={addPromptPoints}
+                                onChange={(event) => {
+                                    setAddPromptPoints(event.target.value);
+                                    setAddPromptError("");
+                                }}
+                            />
+                        </label>
+                        <label className="block">
+                            <span className="hw-overline mb-2 block">Category</span>
+                            <input
+                                className="hw-input"
+                                value={addPromptCategory}
+                                placeholder="Uncategorized"
+                                onChange={(event) => {
+                                    setAddPromptCategory(event.target.value);
+                                    setAddPromptError("");
+                                }}
+                            />
+                        </label>
+                    </div>
+
+                    {addPromptError && (
+                        <div className="rounded-lg bg-red-100 p-3 text-sm font-bold text-red-950">
+                            {addPromptError}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                        <button
+                            className="hw-button-secondary"
+                            disabled={addingPrompt}
+                            onClick={() => {
+                                setAddPromptOpen(false);
+                                setAddPromptError("");
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="hw-button-primary"
+                            disabled={addingPrompt}
+                            onClick={addPrompt}
+                        >
+                            {addingPrompt ? "Adding..." : "Add prompt"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {promptEditorOpen && (
+                <div className="hw-panel space-y-4 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="hw-overline">Prompt editor</div>
+                            <div className="mt-1 text-sm font-bold text-heavy">
+                                {promptDraft.prompts.length} prompt{promptDraft.prompts.length === 1 ? "" : "s"}
+                            </div>
+                        </div>
+                        <label className="hw-button-secondary cursor-pointer">
+                            Import .txt
+                            <input
+                                type="file"
+                                accept=".txt,text/plain"
+                                className="hidden"
+                                onChange={importPromptFile}
+                            />
+                        </label>
+                    </div>
+
+                    <textarea
+                        className="hw-input min-h-80 resize-y font-mono text-sm leading-6"
+                        value={promptText}
+                        spellCheck={false}
+                        onChange={(event) => {
+                            setPromptText(event.target.value);
+                            setPromptErrors([]);
+                        }}
+                    />
+
+                    {promptErrors.length > 0 && (
+                        <div className="space-y-2 rounded-lg bg-red-100 p-3 text-sm font-bold text-red-950">
+                            {promptErrors.map((error) => (
+                                <div key={error}>{error}</div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                        <button
+                            className="hw-button-secondary"
+                            disabled={savingPrompts}
+                            onClick={() => {
+                                setPromptEditorOpen(false);
+                                setPromptErrors([]);
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="hw-button-primary"
+                            disabled={savingPrompts}
+                            onClick={savePrompts}
+                        >
+                            {savingPrompts ? "Saving..." : "Save prompts"}
+                        </button>
                     </div>
                 </div>
             )}

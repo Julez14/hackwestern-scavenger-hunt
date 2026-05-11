@@ -11,6 +11,15 @@
   definition:
     query:
       collection_name: scavenger_hunt
+      query_name: add_item
+  methods:
+    - POST
+  name: add_item
+  url: add-item
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
       query_name: deny_submission
   methods:
     - POST
@@ -43,6 +52,15 @@
     - POST
   name: reset_game
   url: reset-game
+- comment: null
+  definition:
+    query:
+      collection_name: scavenger_hunt
+      query_name: replace_items
+  methods:
+    - POST
+  name: replace_items
+  url: replace-items
 - comment: null
   definition:
     query:

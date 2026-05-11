@@ -144,6 +144,28 @@
               score
             }
           }
+      - name: replace_items
+        query: |
+          mutation replace_items ($adminId: Int!, $items: jsonb!) {
+            replace_items(args: {p_admin_id:$adminId,p_items:$items}) {
+              id
+              item
+              points
+              category
+              display_order
+            }
+          }
+      - name: add_item
+        query: |
+          mutation add_item ($adminId: Int!, $item: String!, $points: Int!, $category: String!) {
+            add_item(args: {p_admin_id:$adminId,p_item:$item,p_points:$points,p_category:$category}) {
+              id
+              item
+              points
+              category
+              display_order
+            }
+          }
       - name: set_auto_approval
         query: |
           mutation set_auto_approval ($adminId: Int!, $enabled: Boolean!) {
